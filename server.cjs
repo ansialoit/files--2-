@@ -10,7 +10,6 @@ const RAKUTEN_ACCESS_KEY = process.env.RAKUTEN_ACCESS_KEY || localSecrets.access
 function proxyRakuten(query, res) {
   const params = new URLSearchParams(query);
   params.set('applicationId', RAKUTEN_APP_ID);
-  if (RAKUTEN_ACCESS_KEY) params.set('accessKey', RAKUTEN_ACCESS_KEY);
   if (!RAKUTEN_APP_ID) {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify({ error: 'applicationId not set' }));
@@ -22,8 +21,8 @@ function proxyRakuten(query, res) {
     return;
   }
   params.set('format', 'json');
-  const url = 'https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404?' + params.toString();
-  https.get(url, (up) => {
+  const url = 'https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?' + params.toString();
+  https.get(url, { headers: { accessKey: RAKUTEN_ACCESS_KEY } }, (up) => {
     let body = '';
     up.on('data', (c) => (body += c));
     up.on('end', () => {
