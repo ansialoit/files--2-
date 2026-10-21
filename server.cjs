@@ -1,4 +1,4 @@
-const http = require('http'), fs = require('fs'), path = require('path'), https = require('https');
+﻿const http = require('http'), fs = require('fs'), path = require('path'), https = require('https');
 const root = 'c:/Users/M3no_/Downloads/files';
 const localSecretsPath = path.join(__dirname, 'rakuten-secrets.json');
 let localSecrets = {};
@@ -6,6 +6,7 @@ try { localSecrets = JSON.parse(fs.readFileSync(localSecretsPath, 'utf8')); } ca
 // Keep credentials on the server; never expose them in browser storage or URLs.
 const RAKUTEN_APP_ID = process.env.RAKUTEN_APP_ID || localSecrets.applicationId || '4a1536a7-07f1-4858-96cb-261b61c7a2d3';
 const RAKUTEN_ACCESS_KEY = process.env.RAKUTEN_ACCESS_KEY || localSecrets.accessKey || '';
+const RAKUTEN_AFFILIATE_ID = process.env.RAKUTEN_AFFILIATE_ID || localSecrets.affiliateId || '57fc03e9.7b16a85d.57fc03ea.7c3f6880';
 
 function proxyRakuten(query, res) {
   const params = new URLSearchParams(query);
@@ -21,8 +22,9 @@ function proxyRakuten(query, res) {
     return;
   }
   params.set('format', 'json');
-  const url = 'https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?' + params.toString();
-  https.get(url, { headers: { accessKey: RAKUTEN_ACCESS_KEY } }, (up) => {
+  if (RAKUTEN_AFFILIATE_ID) params.set('affiliateId', RAKUTEN_AFFILIATE_ID);
+  const url = 'https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?' + params.toString();
+  https.get(url, { headers: { 'Origin': 'https://localhost:8431', 'Referer': 'https://localhost:8431/' } }, (up) => {
     let body = '';
     up.on('data', (c) => (body += c));
     up.on('end', () => {

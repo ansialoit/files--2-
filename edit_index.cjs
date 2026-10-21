@@ -56,8 +56,14 @@ async function fetchRakuten(q){
 ];
 let ok = true;
 for (const [oldS, newS] of edits) {
-  if (t.includes(oldS)) t = t.replace(oldS, newS);
-  else { console.log('MISS: ' + oldS.slice(0, 60)); ok = false; }
+  const count = t.split(oldS).length - 1;
+  if (count === 1) t = t.replace(oldS, () => newS);
+  else { console.log((count === 0 ? 'MISS: ' : 'MULTI (' + count + ' matches): ') + oldS.slice(0, 60)); ok = false; }
 }
-fs.writeFileSync(p, t, 'utf8');
-console.log(ok ? 'ALL OK' : 'SOME MISSED');
+if (ok) {
+  fs.writeFileSync(p, t, 'utf8');
+  console.log('ALL OK');
+} else {
+  console.log('SOME MISSED - file not written');
+  process.exit(1);
+}
