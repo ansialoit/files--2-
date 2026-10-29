@@ -16,7 +16,7 @@ http.createServer(async (req, res) => {
     const q = (url.searchParams.get('q') || '').trim();
     if (!q || q.length > 120) return sendJson(res, 400, {error:'検索語は1〜120文字で入力してください。'});
     try {
-      const apiUrl = new URL('https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404');
+      const apiUrl = new URL('https://app.rakuten.co.jp/services/api/BookTotal/Search/20170404');
       apiUrl.searchParams.set('applicationId', appId);
       apiUrl.searchParams.set('format', 'json');
       apiUrl.searchParams.set('formatVersion', '2');
