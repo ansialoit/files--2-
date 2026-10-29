@@ -707,7 +707,8 @@ body{
 <div class="screen" id="screen-search">
   <div class="search-tabs">
     <div class="search-tab active" id="tab-myshelf" onclick="setSearchTab('myshelf')">📚 コレクションを検索</div>
-    <div class="search-tab"        id="tab-api"     onclick="setSearchTab('api')">🌐 アイテムを追加</div>
+    <div class="search-tab" id="tab-api" onclick="setSearchTab('api')">Other sources</div>
+    <div class="search-tab" id="tab-rakuten" onclick="setSearchTab('rakuten')">&#x697D;&#x5929;&#x30D6;&#x30C3;&#x30AF;&#x30B9;</div>
   </div>
   <!-- myshelf tab -->
   <div class="search-tab-content active" id="tab-content-myshelf">
@@ -733,7 +734,6 @@ body{
         <div class="api-chip active" id="chip-ndl"    onclick="toggleApiSource('ndl',this)">🟣 国会図書館</div>
         <div class="api-chip active" id="chip-openbd" onclick="toggleApiSource('openbd',this)">🟢 OpenBD</div>
         <div class="api-chip active" id="chip-openlibrary" onclick="toggleApiSource('openlibrary',this)">🟠 Open Library</div>
-        <div class="api-chip active" id="chip-rakuten" onclick="toggleApiSource('rakuten',this)">楽天ブックス</div>
 
       </div>
     </div>
@@ -744,7 +744,20 @@ body{
       </div>
     </div>
   </div>
-</div>
+  <div class="search-tab-content" id="tab-content-rakuten">
+    <div class="search-bar-wrap">
+      <div style="font-size:16px;font-weight:700;color:var(--ink);margin:2px 0 4px">Search Rakuten Books</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">Find books by title, author, or ISBN.</div>
+      <div class="search-input-row">
+        <input class="search-bar" type="search" placeholder="Title, author, or ISBN" id="rakuten-search-input" onkeydown="if(event.key==='Enter')doRakutenOnlySearch()">
+        <button class="search-go-btn" onclick="doRakutenOnlySearch()">Search</button>
+      </div>
+    </div>
+    <div class="search-body" id="rakuten-results-body">
+      <div class="api-empty"><div style="font-size:40px;margin-bottom:8px">&#x1F4DA;</div>Enter a keyword to search Rakuten Books</div>
+    </div>
+  </div>
+</div></div>
 
 <!-- ════ SETTINGS SCREEN ════ -->
 <div class="screen" id="screen-settings">
@@ -2182,7 +2195,7 @@ window.onAndroidReady = function(){
 //  SEARCH / MYSHELF
 // ════════════════════════════════════════════════════
 function setSearchTab(tab){
-  ['myshelf','api'].forEach(function(t){
+  ['myshelf','api','rakuten'].forEach(function(t){
     var tabEl=document.getElementById('tab-'+t);
     if(tabEl) tabEl.classList.toggle('active',t===tab);
     var tabContentEl=document.getElementById('tab-content-'+t);
@@ -2342,6 +2355,19 @@ async function lookupByISBN(isbn){
   return null;
 }
 
+async function doRakutenOnlySearch(){
+  const input=document.getElementById('rakuten-search-input');
+  const q=input.value.trim();
+  const body=document.getElementById('rakuten-results-body');
+  if(!q){body.innerHTML='<div class="api-empty">Enter a title, author, or ISBN</div>';input.focus();return}
+  body.innerHTML='<div class="api-loading"><div class="spinner"></div>Searching Rakuten Books...</div>';
+  try{
+    const results=await fetchRakutenBooks(q);
+    renderApiResults(results,[],q,'rakuten-results-body');
+  }catch(error){
+    renderApiResults([],['楽天ブックス: '+error.message],q,'rakuten-results-body');
+  }
+}
 async function doApiSearch(){
   const q=document.getElementById('api-search-input').value.trim();
   if(!q){showToast('キーワードを入力してください');return}
@@ -2361,8 +2387,8 @@ async function doApiSearch(){
 }
 const addedISBNs=new Set(ITEMS.filter(b=>b.isbn).map(b=>b.isbn));
 const srcBadge={google:'<span class="api-badge source-google">Google</span>',ndl:'<span class="api-badge source-ndl">国会図書館</span>',openbd:'<span class="api-badge source-openbd">OpenBD</span>',openlibrary:'<span class="api-badge">Open Library</span>',rakuten:'<span class="api-badge">楽天ブックス</span>'};
-function renderApiResults(results,errors,q){
-  const body=document.getElementById('api-results-body');
+function renderApiResults(results,errors,q,targetId='api-results-body'){
+  const body=document.getElementById(targetId);
   let h='';
   if(errors.length) h+=`<div class="api-error">⚠️ ${errors.join('<br>')}</div>`;
   if(!results.length){h+=`<div class="api-empty">「${q}」の結果が見つかりませんでした</div>`;body.innerHTML=h;return}
