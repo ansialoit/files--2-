@@ -1,49 +1,47 @@
-﻿const http = require('http'), fs = require('fs'), path = require('path'), https = require('https');
-const root = 'c:/Users/M3no_/Downloads/files';
-const localSecretsPath = path.join(__dirname, 'rakuten-secrets.json');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const root = __dirname;
+const mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml'};
+const secretsPath = path.join(__dirname, 'rakuten-secrets.json');
 let localSecrets = {};
-try { localSecrets = JSON.parse(fs.readFileSync(localSecretsPath, 'utf8')); } catch {}
-// Keep credentials on the server; never expose them in browser storage or URLs.
-const RAKUTEN_APP_ID = process.env.RAKUTEN_APP_ID || localSecrets.applicationId || '4a1536a7-07f1-4858-96cb-261b61c7a2d3';
-const RAKUTEN_ACCESS_KEY = process.env.RAKUTEN_ACCESS_KEY || localSecrets.accessKey || '';
-const RAKUTEN_AFFILIATE_ID = process.env.RAKUTEN_AFFILIATE_ID || localSecrets.affiliateId || '57fc03e9.7b16a85d.57fc03ea.7c3f6880';
+try { localSecrets = JSON.parse(fs.readFileSync(secretsPath, 'utf8')); } catch {}
 
-function proxyRakuten(query, res) {
-  const params = new URLSearchParams(query);
-  params.set('applicationId', RAKUTEN_APP_ID);
-  if (!RAKUTEN_APP_ID) {
-    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'applicationId not set' }));
-    return;
+http.createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+  if (url.pathname === '/api/rakuten/books') {
+    const appId = process.env.RAKUTEN_APPLICATION_ID || localSecrets.applicationId || '4a1536a7-07f1-4858-96cb-261b61c7a2d3';
+    const accessKey = process.env.RAKUTEN_ACCESS_KEY || localSecrets.accessKey;
+    if (!appId || !accessKey) return sendJson(res, 503, {error:'サーバーに楽天API認証情報が設定されていません。'});
+    const q = (url.searchParams.get('q') || '').trim();
+    if (!q || q.length > 120) return sendJson(res, 400, {error:'検索語は1〜120文字で入力してください。'});
+    try {
+      const apiUrl = new URL('https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404');
+      apiUrl.searchParams.set('applicationId', appId);
+      apiUrl.searchParams.set('format', 'json');
+      apiUrl.searchParams.set('formatVersion', '2');
+      apiUrl.searchParams.set('keyword', q);
+      apiUrl.searchParams.set('hits', '8');
+      const upstream = await fetch(apiUrl, {headers:{accessKey}, signal:AbortSignal.timeout(12000)});
+      const data = await upstream.json();
+      if (!upstream.ok) return sendJson(res, upstream.status, {error:data.error_description || data.error || `楽天APIエラー (HTTP ${upstream.status})`});
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 502, {error:'楽天ブックスAPIに接続できませんでした。'});
+    }
   }
-  if (!RAKUTEN_ACCESS_KEY) {
-    res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'Rakuten Access Key is required. Set RAKUTEN_ACCESS_KEY on the server.' }));
-    return;
-  }
-  params.set('format', 'json');
-  if (RAKUTEN_AFFILIATE_ID) params.set('affiliateId', RAKUTEN_AFFILIATE_ID);
-  const url = 'https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?' + params.toString();
-  https.get(url, { headers: { 'Origin': 'https://localhost:8431', 'Referer': 'https://localhost:8431/' } }, (up) => {
-    let body = '';
-    up.on('data', (c) => (body += c));
-    up.on('end', () => {
-      res.writeHead(up.statusCode || 502, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-      res.end(body);
-    });
-  }).on('error', (e) => {
-    res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: String(e) }));
+  let pathname;
+  try { pathname = decodeURIComponent(url.pathname); } catch { res.writeHead(400); return res.end('Bad request'); }
+  const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
+  if (!file.startsWith(root + path.sep) && file !== path.join(root, 'index.html')) { res.writeHead(403); return res.end('Forbidden'); }
+  fs.readFile(file, (err, data) => {
+    if (err) { res.writeHead(404); return res.end('Not found'); }
+    res.writeHead(200, {'Content-Type':mime[path.extname(file).toLowerCase()] || 'application/octet-stream'});
+    res.end(data);
   });
+}).listen(Number(process.env.PORT) || 8431, () => console.log(`PhotoShelf running on port ${Number(process.env.PORT) || 8431}`));
+
+function sendJson(res, status, data) {
+  res.writeHead(status, {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});
+  res.end(JSON.stringify(data));
 }
-
-http.createServer((req, res) => {
-  if (req.url.startsWith('/api/rakuten')) {
-    return proxyRakuten(req.url.split('?')[1] || '', res);
-  }
-  let f = path.join(root, req.url === '/' ? 'index.html' : req.url.split('?')[0]);
-  fs.readFile(f, (e, d) => {
-    if (e) { res.writeHead(404); res.end('nf'); return }
-    res.writeHead(200); res.end(d);
-  });
-}).listen(8431, () => console.log('up'));

@@ -1,0 +1,2941 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>PhotoShelf</title>
+<style>
+:root {
+  --shelf-bg:#071B3B; --blue:#4F8CFF; --blue-deep:#2E6EE8;
+  --cream:#E8F0FF; --cream2:#DCE9FF; --ink:#0D203F; --ink-soft:#4A6A9A;
+  --green-acc:#00BFA5; --red-acc:#FF6B6B; --scan-green:#00E676;
+  --page-bg:#DDEAFB;
+  --nav-h:60px; --topbar-h:52px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100vh;height:100vh;height:100dvh;overflow:hidden}
+html{background:var(--page-bg)}
+body{
+  font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
+  background:var(--cream);color:var(--ink);
+  display:flex;flex-direction:column;
+  max-width:430px;margin:0 auto;
+  height:100vh;height:100dvh;overflow:hidden;
+}
+@media (min-width:800px){
+  body{max-width:none;width:100%;}
+}
+/* ── topbar ── */
+.topbar{height:var(--topbar-h);background:var(--shelf-bg);display:flex;align-items:center;justify-content:space-between;padding:0 14px;flex:none;z-index:100}
+.topbar-logo{font-size:20px;font-weight:700;color:var(--blue)}.topbar-logo span{color:#fff;font-weight:300}
+.topbar-icon{width:34px;height:34px;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:16px;cursor:pointer}
+.topbar-icon:active{background:rgba(255,255,255,0.1)}
+/* ── screens ── */
+.screen{display:none;flex-direction:column;flex:1;min-height:0;height:auto;overflow:hidden;background:var(--cream)}
+.screen.active{display:flex;background:var(--cream)}
+@supports not (height: 100dvh) {
+  .screen.active{height:calc(100vh - var(--topbar-h) - var(--nav-h))}
+}
+.room-area{display:none}
+.room-area.active{display:flex;flex-direction:column;flex:1;min-height:0;height:100%;overflow:hidden}
+/* ── bottom nav ── */
+.bottom-nav{height:calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));padding-bottom:env(safe-area-inset-bottom, 0px);background:var(--shelf-bg);display:flex;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0;z-index:100}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:rgba(255,255,255,0.35);font-size:10px;position:relative}
+.nav-item.active{color:var(--blue)}
+.nav-item.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--blue);border-radius:0 0 2px 2px}
+.nav-icon{font-size:20px}
+/* ── edit mode bar ── */
+.edit-mode-bar{display:none;background:var(--blue);color:var(--shelf-bg);text-align:center;font-size:12px;font-weight:600;padding:7px;flex:none}
+.edit-mode-bar.show{display:block}
+/* ── toast ── */
+.toast{position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-8px);background:var(--shelf-bg);color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ════════════════════════════════════
+   SHELF SCREEN  a
+════════════════════════════════════ */
+.shelf-top-tabs{display:flex;background:var(--shelf-bg);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.06)}
+.shelf-top-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,0.4);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.shelf-top-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+/* filter bar */
+.shelf-filter-bar{display:flex;gap:7px;padding:8px 12px;background:var(--shelf-bg);flex-shrink:0;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,0.05)}
+.filter-chip{padding:5px 13px;border-radius:18px;font-size:12px;font-weight:600;border:1.5px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.filter-chip.active{border-color:var(--blue);color:var(--blue);background:rgba(79,140,255,0.12)}
+/* search bar inside shelf */
+.shelf-search-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(0,0,0,0.3);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.shelf-search-input{flex:1;padding:7px 12px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#ffffff;font-size:13px;outline:none}
+.shelf-search-input::placeholder{color:rgba(255,255,255,0.72)}
+.shelf-search-input:focus{border-color:var(--blue)}
+/* shelf name bar */
+.shelf-name-bar{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:rgba(0,0,0,0.35);flex-shrink:0}
+.shelf-name-tag{font-size:12px;font-weight:700;color:var(--blue);background:rgba(79,140,255,0.12);border:1px solid rgba(79,140,255,0.3);border-radius:6px;padding:3px 10px;cursor:pointer;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shelf-controls{display:flex;gap:5px;align-items:center}
+.shelf-ctrl-btn{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.5);cursor:pointer;white-space:nowrap}
+.shelf-ctrl-btn:active{background:rgba(255,255,255,0.08)}
+#shelf-page-indicator{font-size:11px;color:rgba(255,255,255,0.35);min-width:28px;text-align:center}
+/* shelf main */
+.shelf-main{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--bc-bg,#1a0f06)}
+.shelf-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;background:var(--bc-bg,#1a0f06);display:flex;flex-direction:column;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:none}
+.desktop-shelf-grid{display:none}
+.desktop-shelf-card{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--bc-bg,#1a0f06);border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden}
+.desktop-shelf-title{padding:9px 12px;background:rgba(0,0,0,.35);color:var(--blue);font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.desktop-shelf-card .shelf-scroll{display:flex;min-height:360px}
+@media (min-width:800px){
+  .shelf-main{overflow:auto;padding:12px;background:var(--cream)}
+  .shelf-main>.shelf-scroll{display:none}
+  .desktop-shelf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;flex:1;min-height:0;align-items:stretch}
+}
+.shelf-scroll::-webkit-scrollbar{display:none}
+.bookcase{background:var(--bc-bg,#1a0f06);padding:0 5px 120px;min-height:100%;display:flex;flex:1;flex-direction:column}
+.empty-shelf-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;color:rgba(255,255,255,.72);text-align:center;gap:10px}
+.empty-shelf-graphic{font-size:44px}
+.empty-shelf-text{max-width:280px;font-size:13px;line-height:1.7;color:rgba(255,255,255,.68)}
+/* layout bar */
+.layout-toggle-bar{display:flex;gap:5px;padding:5px 10px;background:rgba(0,0,0,0.35);flex-shrink:0;border-top:1px solid rgba(255,255,255,0.05);justify-content:flex-end;align-items:center}
+.layout-bar-label{font-size:10px;color:rgba(255,255,255,0.3);margin-right:4px}
+.layout-btn{font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.4);cursor:pointer}
+.layout-btn.active{background:rgba(79,140,255,0.18);color:#fff;border-color:rgba(255,255,255,0.3)}
+/* FAB */
+.fab{position:absolute;bottom:14px;right:14px;width:52px;height:52px;border-radius:50%;background:var(--blue);border:none;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--shelf-bg);box-shadow:0 4px 12px rgba(79,140,255,0.35);cursor:pointer;z-index:5;transition:transform .15s}
+.fab:active{transform:scale(.92)}
+/* nav arrow */
+.shelf-nav-arrow{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:26px;height:48px;background:rgba(0,0,0,0.5);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:15px;color:rgba(255,255,255,0.6);cursor:pointer;z-index:3;border:1px solid rgba(255,255,255,0.1)}
+
+/* ── BOOKCASE (unified wall) ── */
+.shelf-row-wrap{position:relative}
+.shelf-row{display:flex;align-items:flex-end;flex-wrap:wrap;gap:2px;padding:8px 5px 0;min-height:var(--row-min-h,130px)}
+.shelf-row.edit-mode{outline:2px dashed rgba(79,140,255,0.35);outline-offset:-2px}
+.shelf-plank{width:100%;height:var(--plank-h,14px);background:linear-gradient(to bottom,var(--plank-top,#D4A264),var(--plank-mid,#C49A6C),var(--plank-bot,#8B6540));box-shadow:0 3px 8px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.15);position:relative}
+.shelf-plank::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent var(--grain-size,18px),rgba(0,0,0,0.04) var(--grain-size,18px),rgba(0,0,0,0.04) calc(var(--grain-size,18px) + 2px))}
+.shelf-plank::after{content:'';position:absolute;top:2px;left:8px;right:8px;height:1px;background:rgba(255,255,255,0.18)}
+.shelf-row-wrap.drop-target .shelf-row{outline:2px dashed var(--blue);outline-offset:-2px}
+/* cover mode */
+.shelf-scroll.cover-mode .shelf-row{flex-wrap:wrap;gap:8px;padding:10px 8px;align-items:flex-start;min-height:unset}
+.shelf-scroll.cover-mode .shelf-plank{display:none}
+.shelf-scroll.cover-mode .book-spine-fallback,.shelf-scroll.cover-mode .book-cover-wrap{border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4)}
+
+/* ── BOOK ── */
+.book{display:flex;flex-direction:column;align-items:center;cursor:grab;position:relative;transition:transform .15s ease,opacity .15s ease;transform-origin:bottom center;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.book:active{cursor:grabbing}
+.book.dragging{opacity:.2;transform:scaleY(.95)}
+.book.drag-over-left{box-shadow:-3px 0 0 0 var(--blue);border-radius:2px}
+.book.drag-over-right{box-shadow:3px 0 0 0 var(--blue);border-radius:2px}
+.book-cover-wrap{position:relative;overflow:hidden;border-radius:1px 3px 3px 1px}
+.book-cover-img{display:block;object-fit:cover;pointer-events:none;-webkit-user-drag:none}
+.book-spine-fallback{display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border-radius:1px 3px 3px 1px}
+.book-spine-fallback::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:rgba(0,0,0,0.25)}
+.book-title-spine{writing-mode:vertical-rl;font-size:9px;font-weight:500;color:rgba(255,255,255,0.9);line-height:1.2;padding:4px 2px;white-space:nowrap;overflow:hidden;max-height:90px;text-overflow:ellipsis}
+#drag-ghost{position:fixed;pointer-events:none;z-index:9999;opacity:.85;transform:rotate(5deg) scale(1.1);filter:drop-shadow(0 10px 20px rgba(0,0,0,0.6));transition:none}
+
+/* ════════════════════════════════════
+   BOOKLIST SCREEN
+════════════════════════════════════ */
+.booklist-screen-header{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--shelf-bg);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.06)}
+.booklist-back{font-size:20px;color:rgba(255,255,255,0.5);cursor:pointer;padding:4px}
+.booklist-filter-bar{display:flex;gap:5px;overflow-x:auto;flex:1}
+.booklist-chip{padding:4px 11px;border-radius:15px;font-size:11px;font-weight:600;border:1.5px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.45);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.booklist-chip.active{border-color:var(--blue);color:var(--blue);background:rgba(79,140,255,0.12)}
+.booklist-grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px;background:var(--cream);align-content:start}
+.booklist-card{display:flex;flex-direction:column;gap:5px;cursor:pointer}
+.booklist-card:active{opacity:.75}
+.booklist-cover{width:100%;aspect-ratio:2/3;border-radius:4px 8px 8px 4px;overflow:hidden;position:relative;box-shadow:3px 3px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center}
+.booklist-cover img{width:100%;height:100%;object-fit:cover}
+.booklist-cover-fallback{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px}
+.booklist-cover-title{font-size:9px;font-weight:600;color:rgba(255,255,255,0.9);text-align:center;line-height:1.3;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.booklist-status-dot{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%}
+.booklist-card-title{font-size:10px;font-weight:600;color:var(--ink);line-height:1.3;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.booklist-card-author{font-size:9px;color:var(--ink-soft);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ════════════════════════════════════
+   SCAN SCREEN
+════════════════════════════════════ */
+.scan-viewfinder{flex:1;background:#0a0a0a;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:0}
+.scan-bg-shelf{width:100%;height:100%;background:linear-gradient(160deg,#1a1208 0%,#0d0800 100%);display:flex;align-items:center;justify-content:center}
+.scan-shelf-illus{width:90%;opacity:.3;display:flex;gap:2px;align-items:flex-end;justify-content:center;padding-bottom:40px}
+.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.scan-frame{width:88%;height:56%;border:2px solid var(--scan-green);border-radius:8px;position:relative;box-shadow:0 0 0 2000px rgba(0,0,0,0.45)}
+.scan-corner{position:absolute;width:18px;height:18px;border-color:var(--scan-green);border-style:solid}
+.scan-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+.scan-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.scan-corner.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.scan-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--scan-green),transparent);animation:scan-move 2s ease-in-out infinite}
+@keyframes scan-move{0%{top:5%;opacity:.6}50%{top:90%;opacity:1}100%{top:5%;opacity:.6}}
+.scan-hint{position:absolute;bottom:-34px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,0.7)}
+.scan-controls{padding:16px 20px 22px;background:#111;display:flex;flex-direction:column;gap:12px;flex-shrink:0}
+.scan-btn-main{width:68px;height:68px;border-radius:50%;border:3px solid #fff;background:transparent;margin:0 auto;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.scan-btn-main::after{content:'';width:52px;height:52px;border-radius:50%;background:#fff;position:absolute;transition:transform .1s}
+.scan-btn-main:active::after{transform:scale(.9)}
+.scan-tips{display:flex;gap:10px;justify-content:center}
+.scan-tip{font-size:11px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:3px}
+.scan-tip-dot{width:5px;height:5px;border-radius:50%;background:var(--scan-green)}
+.ai-progress{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.92);flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:20;padding:28px;pointer-events:none}
+.ai-progress.show{display:flex;pointer-events:auto}
+.ai-progress-title{font-size:17px;font-weight:600;color:#fff}
+.ai-steps{width:100%;display:flex;flex-direction:column;gap:8px}
+.ai-step{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;background:rgba(255,255,255,0.06);transition:all .3s}
+.ai-step.active{background:rgba(0,230,118,0.1)}
+.ai-step.done{background:rgba(0,230,118,0.06)}
+.ai-step-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;background:rgba(255,255,255,0.1)}
+.ai-step.active .ai-step-icon{background:var(--scan-green);color:#000}
+.ai-step.done .ai-step-icon{background:rgba(0,230,118,0.3);color:var(--scan-green)}
+.ai-step-text{font-size:12px;color:rgba(255,255,255,0.7)}
+.ai-step.active .ai-step-text{color:#fff;font-weight:500}
+.ai-step.done .ai-step-text{color:rgba(255,255,255,0.4);text-decoration:line-through}
+.ai-bar-wrap{width:100%;background:rgba(255,255,255,0.1);border-radius:4px;height:3px}
+.ai-bar{height:3px;border-radius:3px;background:var(--scan-green);width:0%;transition:width .4s}
+.ai-count{font-size:12px;color:rgba(255,255,255,0.5)}.ai-count b{color:var(--scan-green);font-size:18px}
+
+/* ════════════════════════════════════
+   DETAIL SCREEN
+════════════════════════════════════ */
+.detail-scroll{flex:1;min-height:0;overflow-y:auto}
+.detail-hero{background:var(--shelf-bg);padding:20px 16px 24px;display:flex;gap:16px;align-items:flex-end}
+.detail-cover-wrap{position:relative;flex-shrink:0;filter:drop-shadow(0 8px 16px rgba(0,0,0,0.6))}
+.detail-cover-fallback{border-radius:2px 8px 8px 2px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.detail-cover-side{position:absolute;right:-5px;top:0;bottom:0;width:5px;background:rgba(0,0,0,0.4);border-radius:0 2px 2px 0}
+.detail-cover-shadow{position:absolute;bottom:-7px;left:4px;right:2px;height:7px;background:rgba(0,0,0,0.4);filter:blur(4px);border-radius:50%}
+.detail-info{flex:1}
+.detail-title{font-size:17px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.3}
+.detail-author{font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:3px}
+.detail-publisher{font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:9px}
+.detail-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.detail-tag{font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.55)}
+.detail-meta{display:flex;gap:14px}
+.detail-meta-item{text-align:center}
+.detail-meta-val{font-size:15px;font-weight:700;color:var(--blue)}
+.detail-meta-key{font-size:10px;color:rgba(255,255,255,0.4)}
+.detail-view-btns{display:flex;gap:5px;margin-top:10px}
+.detail-view-btn{flex:1;padding:6px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.5);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s}
+.detail-view-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.detail-body{padding:16px 14px}
+.detail-section{margin-bottom:20px}
+.detail-section-title{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-soft);margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid rgba(0,0,0,0.07)}
+.detail-desc{font-size:13px;line-height:1.75;color:var(--ink-soft)}
+.status-row{display:flex;gap:7px}
+.status-chip{flex:1;padding:9px 6px;border-radius:8px;text-align:center;font-size:12px;font-weight:500;border:1.5px solid rgba(0,0,0,0.1);cursor:pointer;transition:all .15s;color:var(--ink-soft)}
+.status-chip.active.tsundoku{background:#E3F2FD;border-color:var(--blue);color:#0D47A1}
+.status-chip.active.reading{background:#E3F2FD;border-color:#2B5FA6;color:#0D47A1}
+.status-chip.active.done{background:#E8F5E9;border-color:var(--green-acc);color:#1B5E20}
+.rating-row{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.stars{font-size:19px;color:var(--blue);letter-spacing:2px;cursor:pointer}
+.rating-val{font-size:15px;font-weight:700}
+.memo-box{background:var(--cream2);border-radius:8px;padding:11px;font-size:13px;line-height:1.7;color:var(--ink-soft);border:1px solid rgba(0,0,0,0.07);min-height:72px}
+.memo-placeholder{color:rgba(0,0,0,0.3);font-style:italic}
+
+/* ════════════════════════════════════
+   SEARCH SCREEN
+════════════════════════════════════ */
+.search-tabs{display:flex;background:var(--shelf-bg);flex-shrink:0}
+.search-tab{flex:1;padding:11px 8px;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,0.4);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.search-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.search-tab-content{display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden}
+.search-tab-content.active{display:flex}
+.search-bar-wrap{padding:10px 14px;background:var(--cream);border-bottom:1px solid rgba(0,0,0,0.07);flex-shrink:0}
+.search-input-row{display:flex;gap:7px}
+.search-bar{flex:1;padding:9px 13px;border:1.5px solid rgba(0,0,0,0.12);border-radius:22px;background:#fff;font-size:14px;color:var(--ink);outline:none}
+.search-bar:focus{border-color:var(--blue)}
+.search-go-btn{padding:9px 14px;background:var(--shelf-bg);color:#fff;border:none;border-radius:22px;font-size:13px;cursor:pointer}
+.api-source-row{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.api-chip{font-size:11px;padding:3px 9px;border-radius:11px;border:1.5px solid rgba(0,0,0,0.12);cursor:pointer;background:#fff;color:var(--ink-soft);transition:all .15s}
+.api-chip.active{border-color:var(--blue-deep);background:#E3F2FD;color:var(--blue-deep);font-weight:600}
+.search-body{flex:1;min-height:0;overflow-y:auto;padding:0}
+.search-section-title{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-soft);padding:10px 14px 5px}
+.api-result-item{display:flex;gap:12px;padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;position:relative}
+.api-result-item:active{background:var(--cream2)}
+.api-cover{width:42px;height:58px;border-radius:2px 4px 4px 2px;object-fit:cover;flex-shrink:0;background:var(--cream2);display:flex;align-items:center;justify-content:center;font-size:20px}
+.api-cover img{width:42px;height:58px;border-radius:2px 4px 4px 2px;object-fit:cover}
+.api-info{flex:1;min-width:0}
+.api-title{font-size:13px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.api-author{font-size:11px;color:var(--ink-soft);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.api-meta{display:flex;gap:5px;flex-wrap:wrap}
+.api-badge{font-size:10px;padding:2px 6px;border-radius:7px;background:var(--cream2);color:var(--ink-soft);border:1px solid rgba(0,0,0,0.07)}
+.api-badge.source-google{background:#E3F2FD;color:#0D47A1;border-color:#B5D4F4}
+.api-badge.source-ndl{background:#F3E5F5;color:#6A1B9A;border-color:#E1BEE7}
+.api-badge.source-openbd{background:#E8F5E9;color:#1B5E20;border-color:#C8E6C9}
+
+.add-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:var(--blue);border:none;color:var(--shelf-bg);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.add-btn.added{background:var(--green-acc)}
+.api-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:36px;color:var(--ink-soft);font-size:13px}
+.spinner{width:28px;height:28px;border:3px solid rgba(0,0,0,0.1);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.api-empty{text-align:center;padding:36px 18px;color:var(--ink-soft);font-size:13px;line-height:1.7}
+.api-error{margin:10px 14px;padding:10px 12px;background:#FFF3F3;border:1px solid #FFC5C5;border-radius:8px;font-size:12px;color:var(--red-acc)}
+.book-list-item{display:flex;gap:12px;padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer}
+.book-list-item:active{opacity:.7}
+.book-list-info{flex:1}
+.book-list-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.book-list-author{font-size:11px;color:var(--ink-soft);margin-bottom:5px}
+.book-list-chips{display:flex;gap:5px;flex-wrap:wrap}
+.mini-chip{font-size:10px;padding:2px 7px;border-radius:9px;background:var(--cream2);color:var(--ink-soft);border:1px solid rgba(0,0,0,0.07)}
+
+/* ════════════════════════════════════
+   SETTINGS SCREEN
+════════════════════════════════════ */
+.settings-scroll{flex:1;min-height:0;overflow-y:auto;padding:14px}
+.settings-group{margin-bottom:20px}
+.auth-card{padding:14px}
+.auth-status{font-size:13px;color:var(--ink-soft);margin-bottom:10px}
+.auth-actions{display:flex;gap:8px}
+.auth-actions button{flex:1;padding:10px;border-radius:9px;border:1px solid var(--blue);background:transparent;color:var(--blue);font-size:13px;font-weight:700;cursor:pointer}
+.auth-link-button{width:100%;padding:11px;border:1px solid rgba(79,140,255,.45);border-radius:10px;background:#fff;color:var(--blue-deep);font-size:13px;font-weight:700;cursor:pointer}
+.settings-group-title{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-soft);margin-bottom:7px;padding-left:3px}
+.settings-card{background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.07);overflow:hidden}
+.settings-row{display:flex;align-items:center;padding:13px 14px;gap:12px;border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer}
+.settings-row:last-child{border-bottom:none}
+.settings-row:active{background:var(--cream2)}
+.settings-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.settings-label{flex:1;font-size:14px}
+.settings-value{font-size:12px;color:var(--ink-soft)}
+.settings-arrow{font-size:15px;color:rgba(0,0,0,0.3)}
+.toggle{width:42px;height:23px;border-radius:12px;background:#ddd;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--blue)}
+.toggle::after{content:'';position:absolute;width:19px;height:19px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.toggle.on::after{left:21px}
+
+/* ── shelf customise panel ── */
+.custom-panel{background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.08);overflow:hidden;margin-bottom:16px}
+.custom-section{padding:12px 14px 9px;border-bottom:1px solid rgba(0,0,0,0.05)}
+.custom-section:last-child{border-bottom:none}
+.custom-section-title{font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--ink-soft);margin-bottom:9px}
+.material-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.material-chip{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:7px 3px;border-radius:9px;border:2px solid transparent;transition:all .15s}
+.material-chip.active{border-color:var(--blue);background:#E3F2FD}
+.material-chip:active{opacity:.7}
+.material-swatch{width:38px;height:28px;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,0.2);position:relative;overflow:hidden}
+.material-swatch::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent 11px,rgba(0,0,0,0.05) 11px,rgba(0,0,0,0.05) 13px)}
+.material-name{font-size:9px;color:var(--ink-soft);text-align:center}
+.color-grid{display:flex;gap:9px;flex-wrap:wrap}
+.color-dot{width:30px;height:30px;border-radius:50%;cursor:pointer;border:3px solid transparent;box-shadow:0 2px 5px rgba(0,0,0,0.2);transition:all .15s;flex-shrink:0}
+.color-dot.active{border-color:transparent;transform:none}
+.color-dot[data-selected="true"]{border-color:var(--blue);transform:scale(1.15)}
+.color-dot:active{transform:scale(.9)}
+.shelf-slider-row{display:flex;align-items:center;gap:10px}
+.shelf-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;outline:none;background:linear-gradient(to right,var(--blue) 0%,var(--blue) var(--val,50%),#DDD var(--val,50%),#DDD 100%)}
+.shelf-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--blue);box-shadow:0 2px 5px rgba(0,0,0,0.2);cursor:pointer}
+.shelf-slider-val{font-size:15px;font-weight:700;color:var(--ink);min-width:26px;text-align:center}
+.bg-swatch{width:30px;height:30px;border-radius:6px;cursor:pointer;border:3px solid transparent;box-shadow:0 2px 4px rgba(0,0,0,0.15);transition:all .15s}
+.bg-swatch.active{border-color:transparent;transform:none}
+.bg-swatch[data-selected="true"]{border-color:var(--blue);transform:scale(1.12)}
+.shelf-preview{height:62px;border-radius:9px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 3px 8px rgba(0,0,0,0.2);margin-bottom:12px}
+.shelf-preview-row{flex:1;background:var(--bc-bg,#1a0f06);display:flex;align-items:flex-end;gap:3px;padding:4px 6px 0;min-height:36px}
+.shelf-preview-book{border-radius:1px 2px 2px 1px;flex-shrink:0}
+.shelf-preview-plank{height:calc(var(--plank-h,14px) + 4px);background:linear-gradient(to bottom,var(--plank-top,#D4A264),var(--plank-mid,#C49A6C),var(--plank-bot,#8B6540));width:100%;display:block}
+/* RGB color picker */
+.rgb-picker{padding:10px 0 4px}
+.rgb-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.rgb-label{font-size:11px;font-weight:700;width:14px;text-align:center;color:var(--ink-soft)}
+.rgb-slider{flex:1;-webkit-appearance:none;height:6px;border-radius:3px;outline:none;cursor:pointer}
+.rgb-slider.r::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#ff4444;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.rgb-slider.g::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#44cc44;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.rgb-slider.b::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#4488ff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.rgb-val{font-size:11px;font-weight:600;min-width:28px;text-align:right;color:var(--ink-soft)}
+.rgb-result{width:36px;height:36px;border-radius:8px;border:1px solid rgba(0,0,0,.1);flex-shrink:0}
+
+/* ════════════════════════════════════
+   COMMUNITY SCREEN
+════════════════════════════════════ */
+.community-scroll{flex:1;min-height:0;overflow-y:auto;padding:12px;background:var(--cream)}
+
+/* ── share screen ── */
+.share-tabs{display:flex;background:var(--shelf-bg);flex-shrink:0}
+.share-tab{flex:1;padding:11px 6px;text-align:center;font-size:12px;font-weight:700;color:rgba(255,255,255,.46);border:0;border-bottom:2px solid transparent;background:transparent;cursor:pointer}
+.share-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.share-scroll{flex:1;min-height:0;overflow-y:auto;padding:13px 14px 20px;background:var(--cream)}
+.share-panel{display:none}.share-panel.active{display:block}
+.share-heading{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--ink-soft);margin:4px 2px 8px}
+.share-card{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:13px;padding:13px;margin-bottom:13px;box-shadow:0 2px 7px rgba(13,32,63,.04)}
+.share-card-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px}.share-note{font-size:11px;color:var(--ink-soft);line-height:1.55}
+.share-recommendation{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid rgba(0,0,0,.06)}
+.share-recommendation:first-of-type{border-top:0}.share-book-mark{width:31px;height:45px;flex-shrink:0;border-radius:3px 6px 6px 3px;box-shadow:2px 2px 5px rgba(0,0,0,.16)}
+.share-rec-main{flex:1;min-width:0}.share-rec-title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.share-rec-sub{font-size:11px;color:var(--ink-soft);margin-top:3px}
+.share-chip{display:inline-flex;align-items:center;border:1px solid rgba(79,140,255,.35);background:rgba(79,140,255,.08);color:var(--blue-deep);border-radius:99px;padding:4px 8px;font-size:10px;font-weight:700;white-space:nowrap}
+.share-user{display:flex;align-items:center;gap:9px;padding:10px 0;border-top:1px solid rgba(0,0,0,.06)}.share-user:first-of-type{border-top:0}
+.share-avatar{width:35px;height:35px;border-radius:50%;background:var(--cream2);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}.share-user-info{flex:1;min-width:0}.share-user-name{font-size:13px;font-weight:700}.share-user-meta{font-size:11px;color:var(--ink-soft);margin-top:2px}
+.share-action{border:1px solid rgba(79,140,255,.42);background:#fff;color:var(--blue-deep);border-radius:8px;padding:6px 9px;font-size:11px;font-weight:700;cursor:pointer}.share-action.active{background:var(--blue);color:#fff}
+.share-shelf-preview{height:64px;background:var(--shelf-bg);border-radius:9px;display:flex;align-items:flex-end;gap:3px;padding:7px 9px 0;margin:8px 0}.share-shelf-book{width:14px;border-radius:2px 3px 0 0}
+.share-reactions{display:flex;gap:7px;margin-top:9px}.share-reaction{border:0;background:var(--cream2);color:var(--ink-soft);border-radius:8px;padding:6px 9px;font-size:11px;cursor:pointer}.share-reaction.active{background:#DDEAFF;color:var(--blue-deep);font-weight:700}
+.share-dm{display:flex;gap:7px;margin-top:10px}.share-dm input{flex:1;min-width:0;border:1px solid rgba(0,0,0,.13);border-radius:8px;padding:8px 9px;font-size:12px;color:var(--ink);outline:none}.share-dm button{border:0;border-radius:8px;background:var(--blue);color:#fff;padding:0 11px;font-size:11px;font-weight:700;cursor:pointer}
+.share-setting{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid rgba(0,0,0,.06)}.share-setting:first-of-type{border-top:0}.share-setting-title{font-size:13px;font-weight:700}.share-setting-desc{font-size:11px;color:var(--ink-soft);margin-top:3px;line-height:1.4}.share-toggle{width:42px;height:24px;border:0;border-radius:20px;background:#bac4d2;position:relative;flex-shrink:0;cursor:pointer}.share-toggle::after{content:'';position:absolute;width:18px;height:18px;top:3px;left:3px;border-radius:50%;background:#fff;transition:.18s}.share-toggle.on{background:var(--blue)}.share-toggle.on::after{left:21px}
+
+/* ════════════════════════════════════
+   MODALS
+════════════════════════════════════ */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);align-items:flex-end;justify-content:center;pointer-events:none}
+.modal-overlay.open{display:flex;pointer-events:auto}
+.modal-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:430px;padding:18px 14px 28px}
+.modal-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.modal-sub{font-size:12px;color:var(--ink-soft);margin-bottom:14px}
+.modal-input{width:100%;padding:10px 13px;border:1.5px solid rgba(0,0,0,.15);border-radius:10px;font-size:15px;outline:none;color:var(--ink)}
+.modal-input:focus{border-color:var(--blue)}
+.modal-btns{display:flex;gap:7px;margin-top:13px}
+.modal-btn{flex:1;padding:11px;border-radius:10px;font-size:14px;cursor:pointer}
+.modal-btn.cancel{border:1px solid rgba(0,0,0,.12);background:transparent;color:var(--ink-soft)}
+.modal-btn.confirm{border:none;background:var(--blue);color:#fff;font-weight:700}
+.move-list{display:flex;flex-direction:column;gap:7px;max-height:45vh;overflow-y:auto}
+.move-item{width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid rgba(0,0,0,.1);background:#fff;display:flex;align-items:center;justify-content:space-between;font-size:14px;cursor:pointer;color:var(--ink);text-align:left}
+.move-item.current{border-color:var(--blue);background:rgba(79,140,255,0.08)}
+.move-item-cur-label{color:var(--blue);font-size:11px}
+
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:3px}
+/* ===== Room Tabs ===== */
+
+.room-tabs{
+    display:flex;
+    flex:none;
+    gap:8px;
+    padding:10px;
+    background:#fafafa;
+    border-bottom:1px solid #ddd;
+    overflow-x:auto;
+    overflow-y:hidden;
+    white-space:nowrap;
+    scrollbar-width:none;
+    -ms-overflow-style:none;
+}
+
+.room-tabs::-webkit-scrollbar{display:none}
+
+.room-tab{
+    flex:0 0 auto;
+    min-height:44px;
+    height:40px;
+    padding:0 16px;
+    border:1px solid rgba(15, 23, 42, 0.08);
+    border-radius:999px;
+    background:#ececec;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.8);
+    cursor:pointer;
+    font-size:13px;
+    font-weight:700;
+    line-height:1;
+    letter-spacing:0.01em;
+    color:#334155;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    white-space:nowrap;
+    text-align:center;
+    -webkit-tap-highlight-color:transparent;
+}
+
+.room-tab.active{
+    background:linear-gradient(180deg,#5d9bff,#4f8cff);
+    color:white;
+    border-color:rgba(79,140,255,0.7);
+    box-shadow:0 8px 18px rgba(79,140,255,0.22);
+}
+
+.room-area{
+    display:none;
+}
+
+.room-area.active{
+    display:flex;
+    flex-direction:column;
+    flex:1;
+    min-height:0;
+    overflow:hidden;
+}
+
+.placeholder{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:300px;
+    font-size:22px;
+    color:#888;
+}
+#screen-register{height:100%;min-height:0;flex-direction:column;overflow:hidden;background:#DDEAFB;}
+.register-screen{padding:14px 16px;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow:hidden;background:#DDEAFB;}
+.register-tabs{display:flex;background:var(--shelf-bg);flex-shrink:0}
+.register-tab{flex:1;padding:11px 8px;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,0.4);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.register-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.register-panel{display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden}
+.register-panel.active{display:flex}
+.register-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:0 8px 12px;}
+.register-form{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;}
+.register-form .form-row{display:flex;flex-direction:column;gap:6px;}
+.register-form label{font-size:13px;color:var(--ink-soft);font-weight:600;}
+.register-form input,
+.register-form textarea,
+.register-form select{width:100%;padding:12px 14px;border:1.5px solid rgba(0,0,0,.12);border-radius:12px;background:#fff;color:var(--ink);font-size:14px;outline:none;}
+.register-form textarea{min-height:110px;resize:vertical;}
+.register-submit{margin-top:6px;padding:14px 0;border:none;border-radius:14px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer;}
+.register-submit:active{transform:scale(.98);}
+.register-actions{display:flex;flex-direction:column;gap:10px;}
+.register-actions .layout-btn{width:100%;max-width:100%;}
+.register-quick-box{display:flex;flex-direction:column;gap:14px;padding:12px 8px 0;flex:1}
+.register-quick-card{background:var(--cream);border:1.5px solid rgba(0,0,0,.08);border-radius:18px;padding:18px 16px;display:flex;flex-direction:column;gap:12px;min-height:240px;justify-content:center;align-items:center;text-align:center;}
+.register-quick-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.register-quick-sub{font-size:12px;color:var(--ink-soft);line-height:1.6}
+.register-scan-btn{padding:14px 20px;border:none;border-radius:18px;background:var(--blue);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+.register-file-picker{display:flex;align-items:center;justify-content:center;padding:12px 14px;border-radius:12px;border:1.5px solid rgba(0,0,0,.12);background:#fff;color:var(--ink);font-size:13px;cursor:pointer;position:relative;overflow:hidden;width:100%}
+.register-file-picker input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.register-inline-note{font-size:11px;color:var(--ink-soft);margin-top:4px}
+.register-image-name{font-size:12px;color:var(--ink-soft);min-height:18px}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">Photo<span>Shelf</span></div>
+  <div style="display:flex;gap:7px">
+    <div class="topbar-icon" id="edit-mode-btn" onclick="toggleEditMode()" title="並び替え">✏️</div>
+    <div class="topbar-icon" onclick="switchScreen('settings')">⚙️</div>
+  </div>
+</div>
+<div class="edit-mode-bar" id="edit-mode-bar">✏️ 並び替えモード — アイテムを長押しして動かせます　もう一度タップで完了</div>
+
+<!-- ════ SHELF SCREEN ════ -->
+<div class="screen active" id="screen-shelf">
+  <div class="room-tabs" id="category-tabs"></div>
+
+<div class="room-area active">
+  <div style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
+    <!-- tabs -->
+    <div class="shelf-top-tabs">
+      <div class="shelf-top-tab active" id="sttab-list"     onclick="setShelfTopTab('list')">📚 一覧</div>
+      <div class="shelf-top-tab"        id="sttab-booklist" onclick="setShelfTopTab('booklist')">📋 アイテム一覧</div>
+    </div>
+    <!-- filter chips -->
+    <div class="shelf-filter-bar" id="status-filter-bar"></div>
+    <!-- shelf search -->
+    <div class="shelf-search-bar">
+      <input class="shelf-search-input" type="text" placeholder="🔍 アイテムを検索..." id="shelf-search-input" oninput="onShelfSearch(this.value)">
+      <div id="shelf-search-clear" onclick="clearShelfSearch()" style="display:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:18px;flex-shrink:0">✕</div>
+    </div>
+    <!-- shelf name bar -->
+    <div class="shelf-name-bar">
+      <div class="shelf-name-tag" id="shelf-name-tag" onclick="renameShelf()">✏️ マイコレクション</div>
+      <div class="shelf-controls">
+        <button class="shelf-ctrl-btn" onclick="prevShelf()">‹</button>
+        <span id="shelf-page-indicator" style="font-size:11px;color:rgba(255,255,255,.35);min-width:28px;text-align:center">1/1</span>
+        <button class="shelf-ctrl-btn" onclick="nextShelf()">›</button>
+        <button class="shelf-ctrl-btn" id="rows-btn" onclick="changeShelfRows()" style="border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.6)">段数 <span id="current-rows-label">3</span></button>
+        <button class="shelf-ctrl-btn" onclick="addNewShelf()" style="border-color:var(--blue);color:var(--blue)">＋棚</button>
+      </div>
+    </div>
+    <!-- shelf main -->
+    <div class="shelf-main">
+      <div class="shelf-scroll" id="shelf-scroll"></div>
+      <div class="desktop-shelf-grid" id="desktop-shelf-grid"></div>
+      <div class="shelf-nav-arrow" onclick="nextShelf()">›</div>
+    </div>
+    <!-- layout bar -->
+    <div class="layout-toggle-bar">
+      <span class="layout-bar-label">レイアウト</span>
+      <button class="layout-btn active" id="layout-spine" onclick="setLayout('spine')">背表紙</button>
+      <button class="layout-btn"        id="layout-cover" onclick="setLayout('cover')">表紙正面</button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ════ BOOKLIST SCREEN ════ -->
+<div class="screen" id="screen-booklist">
+  <div class="booklist-screen-header">
+    <div class="booklist-back" onclick="switchScreen('shelf')">‹</div>
+    <div class="booklist-filter-bar">
+      <div class="booklist-chip active" id="blfc-all"      onclick="setBooklistFilter('all')">すべて</div>
+      <div class="booklist-chip"        id="blfc-tsundoku"  onclick="setBooklistFilter('tsundoku')">未読</div>
+      <div class="booklist-chip"        id="blfc-reading"   onclick="setBooklistFilter('reading')">読書中</div>
+      <div class="booklist-chip"        id="blfc-done"      onclick="setBooklistFilter('done')">読了</div>
+    </div>
+  </div>
+  <div class="booklist-grid" id="booklist-grid"></div>
+</div>
+
+<!-- ════ SCAN SCREEN ════ -->
+<div class="screen" id="screen-scan">
+  <div class="shelf-top-tabs">
+    <div class="shelf-top-tab active" id="scantab-shelf" onclick="setScanTab('shelf')">📸 棚をスキャン</div>
+    <div class="shelf-top-tab"        id="scantab-barcode" onclick="setScanTab('barcode')">📷 バーコード</div>
+  </div>
+  <div class="scan-viewfinder">
+    <div class="scan-bg-shelf" id="scan-bg-shelf">
+      <div class="scan-shelf-illus" id="scan-illus-shelf">
+        <div style="width:14px;height:88px;background:#8B3A3A;border-radius:1px 2px 2px 1px;opacity:.6"></div>
+        <div style="width:22px;height:108px;background:#3A5F8B;border-radius:1px 2px 2px 1px;opacity:.6"></div>
+        <div style="width:18px;height:78px;background:#5F8B3A;border-radius:1px 2px 2px 1px;opacity:.6"></div>
+        <div style="width:10px;height:93px;background:#8B7A3A;border-radius:1px 2px 2px 1px;opacity:.6"></div>
+        <div style="width:20px;height:103px;background:#7A3A8B;border-radius:1px 2px 2px 1px;opacity:.6"></div>
+        <div style="width:16px;height:86px;background:#8B5C3A;border-radius:1px 2px 2px 1px;opacity:.6"></div>
+        <div style="width:24px;height:112px;background:#3A8B7A;border-radius:1px 2px 2px 1px;opacity:.6"></div>
+      </div>
+      <!-- バーコードモード用イラスト -->
+      <div id="scan-illus-barcode" style="display:none;flex-direction:column;align-items:center;gap:14px">
+        <div style="font-size:64px;opacity:.35">📕</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;line-height:1.7">裏表紙にあるバーコード(ISBN)を<br>枠に収めてください</div>
+      </div>
+    </div>
+    <div class="scan-overlay">
+      <div class="scan-frame" id="scan-frame">
+        <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+        <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+        <div class="scan-line"></div>
+        <div class="scan-hint" id="scan-hint-text">棚全体をフレームに収めてください</div>
+      </div>
+    </div>
+    <div class="ai-progress" id="ai-progress">
+      <div class="ai-progress-title">📚 AI解析中...</div>
+      <div class="ai-steps" id="ai-steps"></div>
+      <div class="ai-bar-wrap"><div class="ai-bar" id="ai-bar"></div></div>
+      <div class="ai-count">検出中: <b id="ai-count">0</b> 冊</div>
+    </div>
+    <!-- バーコード照会中オーバーレイ -->
+    <div class="ai-progress" id="barcode-progress">
+      <div class="spinner" style="width:36px;height:36px;border-width:4px"></div>
+      <div class="ai-progress-title" style="font-size:15px;margin-top:14px">📖 情報を照会中...</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.5)" id="barcode-isbn-display"></div>
+    </div>
+  </div>
+  <div class="scan-controls">
+    <div class="scan-tips" id="scan-tips-shelf">
+      <div class="scan-tip"><div class="scan-tip-dot"></div>台形補正</div>
+      <div class="scan-tip"><div class="scan-tip-dot"></div>ノイズ除去</div>
+      <div class="scan-tip"><div class="scan-tip-dot"></div>AI認識</div>
+    </div>
+    <div class="scan-tips" id="scan-tips-barcode" style="display:none">
+      <div class="scan-tip"><div class="scan-tip-dot"></div>ISBNバーコード対応</div>
+      <div class="scan-tip"><div class="scan-tip-dot"></div>OpenBD / Google Books照会</div>
+    </div>
+    <div class="scan-btn-main" id="scan-btn-main" onclick="onScanBtnTap()"></div>
+    <button class="shelf-ctrl-btn" style="width:100%;margin-top:10px;" onclick="openManualAddModal()">📝 手動登録</button>
+  </div>
+</div>
+
+<!-- ════ DETAIL SCREEN ════ -->
+<div class="screen" id="screen-detail">
+  <div style="padding:9px 14px 0;cursor:pointer;font-size:13px;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:4px;flex-shrink:0;background:var(--shelf-bg)" onclick="goBack()">← 戻る</div>
+  <div class="detail-scroll">
+    <div class="detail-hero">
+      <div class="detail-cover-wrap" id="detail-cover-wrap">
+        <div class="detail-cover-fallback" id="detail-cover-fallback"></div>
+        <div class="detail-cover-side" id="detail-cover-side"></div>
+        <div class="detail-cover-shadow"></div>
+      </div>
+      <div class="detail-info">
+        <div class="detail-title" id="detail-title"></div>
+        <div class="detail-author" id="detail-author"></div>
+        <div class="detail-publisher" id="detail-publisher"></div>
+        <div class="detail-tags" id="detail-tags"></div>
+        <div class="detail-meta" id="detail-meta"></div>
+        <div class="detail-view-btns">
+          <button class="detail-view-btn active" id="detail-view-spine" onclick="setDetailView('spine')">背表紙</button>
+          <button class="detail-view-btn"        id="detail-view-cover" onclick="setDetailView('cover')">表紙</button>
+        </div>
+      </div>
+    </div>
+    <div class="detail-body">
+      <!-- 所在棚 -->
+      <div class="detail-section">
+        <div class="detail-section-title">所在棚</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#fff;border-radius:10px;border:1px solid rgba(0,0,0,.08)">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--ink)" id="detail-shelf-name">—</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:2px" id="detail-shelf-row">—段目</div>
+          </div>
+          <button onclick="openMoveModalFromDetail()" style="padding:7px 14px;border-radius:8px;border:1.5px solid var(--blue);background:transparent;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer">棚を変更</button>
+        </div>
+      </div>
+      <div class="detail-section" id="detail-desc-section" style="display:none">
+        <div class="detail-section-title">概要</div>
+        <div class="detail-desc" id="detail-desc"></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">読書ステータス</div>
+        <div class="status-row">
+          <div class="status-chip tsundoku" id="status-tsundoku" onclick="setStatus('tsundoku')">📚 積読</div>
+          <div class="status-chip reading"  id="status-reading"  onclick="setStatus('reading')">📖 読書中</div>
+          <div class="status-chip done"     id="status-done"     onclick="setStatus('done')">✅ 読了</div>
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">マイレビュー</div>
+        <div class="rating-row">
+          <div class="stars" id="detail-stars" onclick="cycleRating()">★★★☆☆</div>
+          <div class="rating-val" id="detail-rating">3.0</div>
+          <div style="font-size:12px;color:var(--ink-soft)">/ 5.0（タップで変更）</div>
+        </div>
+        <div class="memo-box" id="detail-memo" contenteditable="true" oninput="saveMemo()">
+          <span class="memo-placeholder">メモ・感想をここに追加できます...</span>
+        </div>
+      </div>
+      <div class="detail-section">
+        <button class="modal-btn cancel" style="width:100%;color:#C62828;border-color:#E57373" onclick="deleteCurrentBook()">🗑️ この本を削除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-login">
+  <div class="register-screen">
+    <div style="display:flex;align-items:center;gap:8px;color:var(--ink-soft);font-size:13px;cursor:pointer" onclick="switchScreen('settings')">← 設定へ戻る</div>
+    <div style="font-size:22px;font-weight:700;color:var(--ink);margin-top:18px">PhotoShelf にログイン</div>
+    <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">ログインすると、登録した本をクラウドに保存して複数の端末で利用できます。</div>
+    <div class="register-form">
+      <div class="form-row"><label for="login-email">メールアドレス</label><input id="login-email" type="email" autocomplete="email" placeholder="example@example.com"></div>
+      <div class="form-row"><label for="login-password">パスワード</label><input id="login-password" type="password" autocomplete="current-password" placeholder="パスワード"></div>
+      <button type="button" class="register-submit" onclick="loginUser()">ログイン</button>
+      <button type="button" class="auth-link-button" onclick="openSignupScreen()">新規登録はこちら</button>
+      <div id="auth-error" style="min-height:20px;color:#C62828;font-size:12px"></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-signup">
+  <div class="register-screen">
+    <div style="display:flex;align-items:center;gap:8px;color:var(--ink-soft);font-size:13px;cursor:pointer" onclick="switchScreen('login')">← ログインへ戻る</div>
+    <div style="font-size:22px;font-weight:700;color:var(--ink);margin-top:18px">新規アカウント登録</div>
+    <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">メールアドレスとパスワードを登録してください。</div>
+    <div class="register-form">
+      <div class="form-row"><label for="signup-email">メールアドレス</label><input id="signup-email" type="email" autocomplete="email" placeholder="example@example.com"></div>
+      <div class="form-row"><label for="signup-password">パスワード</label><input id="signup-password" type="password" autocomplete="new-password" placeholder="6文字以上"></div>
+      <div class="form-row"><label for="signup-password-confirm">パスワード（確認）</label><input id="signup-password-confirm" type="password" autocomplete="new-password" placeholder="もう一度入力"></div>
+      <button type="button" class="register-submit" onclick="signupUser()">アカウントを作成</button>
+      <button type="button" class="auth-link-button" id="resend-confirmation-button" onclick="resendConfirmationEmail()" style="display:none">確認メールを再送する</button>
+      <div id="signup-error" style="min-height:20px;color:#C62828;font-size:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SEARCH SCREEN ════ -->
+<div class="screen" id="screen-search">
+  <div class="search-tabs">
+    <div class="search-tab active" id="tab-myshelf" onclick="setSearchTab('myshelf')">📚 コレクションを検索</div>
+    <div class="search-tab"        id="tab-api"     onclick="setSearchTab('api')">🌐 アイテムを追加</div>
+  </div>
+  <!-- myshelf tab -->
+  <div class="search-tab-content active" id="tab-content-myshelf">
+    <div class="search-bar-wrap">
+      <div class="search-input-row">
+        <input class="search-bar" type="text" placeholder="タイトル・著者・ジャンルで絞り込み" id="myshelf-input" oninput="doMyShelfSearch(this.value)">
+      </div>
+    </div>
+    <div class="search-body">
+      <div class="search-section-title" id="myshelf-label">すべてのアイテム</div>
+      <div id="myshelf-results"></div>
+    </div>
+  </div>
+  <!-- api tab -->
+  <div class="search-tab-content" id="tab-content-api">
+    <div class="search-bar-wrap">
+      <div class="search-input-row">
+        <input class="search-bar" type="text" placeholder="タイトル・著者・ISBNで検索" id="api-search-input" onkeydown="if(event.key==='Enter')doApiSearch()">
+        <button class="search-go-btn" onclick="doApiSearch()">検索</button>
+      </div>
+      <div class="api-source-row">
+        <div class="api-chip active" id="chip-google" onclick="toggleApiSource('google',this)">🔵 Google Books</div>
+        <div class="api-chip active" id="chip-ndl"    onclick="toggleApiSource('ndl',this)">🟣 国会図書館</div>
+        <div class="api-chip active" id="chip-openbd" onclick="toggleApiSource('openbd',this)">🟢 OpenBD</div>
+        <div class="api-chip active" id="chip-openlibrary" onclick="toggleApiSource('openlibrary',this)">🟠 Open Library</div>
+        <div class="api-chip active" id="chip-rakuten" onclick="toggleApiSource('rakuten',this)">楽天ブックス</div>
+
+      </div>
+    </div>
+    <div class="search-body" id="api-results-body">
+      <div class="api-empty">
+        <div style="font-size:44px;margin-bottom:10px">🔍</div>
+        タイトルや著者名で検索すると<br>複数のデータベースから取得します
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SETTINGS SCREEN ════ -->
+<div class="screen" id="screen-settings">
+  <div class="settings-scroll">
+    <div class="settings-group">
+      <div class="settings-group-title">👤 アカウント</div>
+      <div class="settings-card auth-card">
+        <div class="auth-status" id="auth-status">ログインしていません</div>
+        <div class="auth-actions">
+          <button id="auth-login-button" onclick="openLoginScreen()">ログイン</button>
+          <button id="auth-logout-button" onclick="logoutUser()" style="display:none">ログアウト</button>
+        </div>
+      </div>
+    </div>
+    <!-- shelf customise -->
+    <div class="settings-group">
+      <div class="settings-group-title">🪵 棚のカスタマイズ</div>
+      <div class="custom-panel">
+        <!-- preview -->
+        <div class="custom-section">
+          <div class="custom-section-title">プレビュー</div>
+          <div class="shelf-preview" id="shelf-preview">
+            <div class="shelf-preview-row" id="preview-row">
+              <div class="shelf-preview-book" style="width:8px;height:38px;background:#8B4A8B"></div>
+              <div class="shelf-preview-book" style="width:14px;height:44px;background:#C44B2B"></div>
+              <div class="shelf-preview-book" style="width:10px;height:40px;background:#1A4A8B"></div>
+              <div class="shelf-preview-book" style="width:12px;height:36px;background:#3A7D44"></div>
+              <div class="shelf-preview-book" style="width:16px;height:46px;background:#8B6A1A"></div>
+            </div>
+            <div class="shelf-preview-plank" id="preview-plank"></div>
+          </div>
+        </div>
+        <!-- material -->
+        <div class="custom-section">
+          <div class="custom-section-title">材質プリセット</div>
+          <div class="material-grid" id="material-grid"></div>
+        </div>
+        <!-- plank color -->
+        <div class="custom-section">
+          <div class="custom-section-title">板の色</div>
+          <div class="color-grid" id="plank-color-grid"></div>
+          <!-- RGB picker for plank -->
+          <div style="margin-top:10px">
+            <div style="font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:6px">カスタムRGB</div>
+            <div class="rgb-picker" id="plank-rgb-picker">
+              <div class="rgb-row"><span class="rgb-label" style="color:#f44">R</span><input type="range" class="rgb-slider r" id="plank-r" min="0" max="255" value="180" oninput="onRGBChange('plank')"><span class="rgb-val" id="plank-r-val">180</span></div>
+              <div class="rgb-row"><span class="rgb-label" style="color:#4c4">G</span><input type="range" class="rgb-slider g" id="plank-g" min="0" max="255" value="130" oninput="onRGBChange('plank')"><span class="rgb-val" id="plank-g-val">130</span></div>
+              <div class="rgb-row"><span class="rgb-label" style="color:#48f">B</span><input type="range" class="rgb-slider b" id="plank-b" min="0" max="255" value="80"  oninput="onRGBChange('plank')"><span class="rgb-val" id="plank-b-val">80</span></div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                <div class="rgb-result" id="plank-rgb-result"></div>
+                <button onclick="applyRGBColor('plank')" style="flex:1;padding:7px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer">この色を適用</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- bg color -->
+        <div class="custom-section">
+          <div class="custom-section-title">背景色</div>
+          <div class="color-grid" id="bg-color-grid"></div>
+          <!-- RGB picker for bg -->
+          <div style="margin-top:10px">
+            <div style="font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:6px">カスタムRGB</div>
+            <div class="rgb-picker" id="bg-rgb-picker">
+              <div class="rgb-row"><span class="rgb-label" style="color:#f44">R</span><input type="range" class="rgb-slider r" id="bg-r" min="0" max="255" value="26"  oninput="onRGBChange('bg')"><span class="rgb-val" id="bg-r-val">26</span></div>
+              <div class="rgb-row"><span class="rgb-label" style="color:#4c4">G</span><input type="range" class="rgb-slider g" id="bg-g" min="0" max="255" value="15"  oninput="onRGBChange('bg')"><span class="rgb-val" id="bg-g-val">15</span></div>
+              <div class="rgb-row"><span class="rgb-label" style="color:#48f">B</span><input type="range" class="rgb-slider b" id="bg-b" min="0" max="255" value="6"   oninput="onRGBChange('bg')"><span class="rgb-val" id="bg-b-val">6</span></div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                <div class="rgb-result" id="bg-rgb-result"></div>
+                <button onclick="applyRGBColor('bg')" style="flex:1;padding:7px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer">この色を適用</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- plank thickness -->
+        <div class="custom-section">
+          <div class="custom-section-title">板の厚み</div>
+          <div class="shelf-slider-row">
+            <input type="range" class="shelf-slider" id="plank-thickness" min="6" max="24" value="14" oninput="setPlankThickness(this.value)">
+            <div class="shelf-slider-val" id="plank-thickness-val">14</div>
+            <div style="font-size:11px;color:var(--ink-soft)">px</div>
+          </div>
+        </div>
+        <!-- row height -->
+        <div class="custom-section">
+          <div class="custom-section-title">段の高さ</div>
+          <div class="shelf-slider-row">
+            <input type="range" class="shelf-slider" id="row-height" min="100" max="200" value="130" oninput="setRowHeight(this.value)">
+            <div class="shelf-slider-val" id="row-height-val">130</div>
+            <div style="font-size:11px;color:var(--ink-soft)">px</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- api status -->
+    <div class="settings-group">
+      <div class="settings-group-title">📡 書籍データベース</div>
+      <div class="settings-card">
+        <div class="settings-row"><div class="settings-icon" style="background:#E3F2FD">🤖</div><div class="settings-label">Google Books（AI経由）</div><div class="settings-value" style="color:#2E7D32">● 利用可</div></div>
+        <div class="settings-row"><div class="settings-icon" style="background:#F3E5F5">🤖</div><div class="settings-label">国立国会図書館（AI経由）</div><div class="settings-value" style="color:#2E7D32">● 利用可</div></div>
+        <div class="settings-row"><div class="settings-icon" style="background:#E8F5E9">🤖</div><div class="settings-label">OpenBD（AI経由）</div><div class="settings-value" style="color:#2E7D32">● 利用可</div></div>
+      </div>
+    </div>
+    <!-- data -->
+    <div class="settings-group">
+      <div class="settings-group-title">📦 データ管理</div>
+      <div class="settings-card">
+        <div class="settings-row" onclick="clearAllBooks()"><div class="settings-icon" style="background:#FFEBEE">🗑️</div><div class="settings-label" style="color:#C62828">コレクションをリセット</div><div class="settings-arrow">›</div></div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:16px 0 32px;font-size:11px;color:rgba(0,0,0,.3)">PhotoShelf v3.0 · AI連携版</div>
+  </div>
+</div>
+
+<!-- ════ COMMUNITY SCREEN ════ -->
+<div class="screen" id="screen-community">
+  <div style="padding:14px 14px 8px;font-size:14px;font-weight:700;color:var(--ink);flex-shrink:0">🌐 みんなのコレクション</div>
+  <div class="community-scroll" id="community-list"></div>
+</div>
+
+<!-- ════ SHARE SCREEN ════ -->
+<div class="screen" id="screen-share">
+  <div class="share-tabs">
+    <button class="share-tab active" data-share-tab="discover" onclick="setShareTab('discover')">✨ 発見</button>
+    <button class="share-tab" data-share-tab="people" onclick="setShareTab('people')">🤝 つながり</button>
+    <button class="share-tab" data-share-tab="privacy" onclick="setShareTab('privacy')">🔒 公開設定</button>
+  </div>
+  <div class="share-scroll">
+    <section class="share-panel active" id="share-discover"></section>
+    <section class="share-panel" id="share-people"></section>
+    <section class="share-panel" id="share-privacy"></section>
+  </div>
+</div>
+
+<!-- ════ REGISTER SCREEN ════ -->
+<div class="screen" id="screen-register">
+  <div class="register-tabs">
+    <div class="register-tab active" id="register-tab-manual" onclick="setRegisterTab('manual')">✍️ 手動で入力</div>
+    <div class="register-tab" id="register-tab-scan" onclick="setRegisterTab('scan')">📷 スキャンして登録</div>
+  </div>
+  <div class="register-screen">
+    <div class="register-panel active" id="register-panel-manual">
+      <div class="register-scroll">
+        <div class="register-form">
+          <div class="form-row">
+            <label for="register-title">タイトル</label>
+            <input id="register-title" type="text" placeholder="タイトルを入力" maxlength="80" oninput="saveRegisterDraft()">
+          </div>
+          <div class="form-row">
+            <label for="register-category">カテゴリ</label>
+            <select id="register-category" onchange="saveRegisterDraft()"></select>
+          </div>
+          <div class="form-row">
+            <label for="register-tags">タグ</label>
+            <input id="register-tags" type="text" placeholder="例：小説, 2024, おすすめ" maxlength="80" oninput="saveRegisterDraft()">
+          </div>
+          <div class="form-row">
+            <label for="register-creator">著者・制作・出演</label>
+            <input id="register-creator" type="text" placeholder="著者名を入力" maxlength="80" oninput="saveRegisterDraft()">
+          </div>
+          <div class="form-row">
+            <label for="register-year">年（任意）</label>
+            <input id="register-year" type="text" placeholder="2024" maxlength="4" oninput="saveRegisterDraft()">
+          </div>
+          <div class="form-row">
+            <label for="register-image">画像</label>
+            <label class="register-file-picker">
+              画像を選択
+              <input id="register-image" type="file" accept="image/*" onchange="onRegisterImageSelected(this); saveRegisterDraft();">
+            </label>
+            <div class="register-image-name" id="register-image-name">画像を選択しない</div>
+          </div>
+          <div class="form-row">
+            <label for="register-note">メモ・説明（任意）</label>
+            <textarea id="register-note" placeholder="内容や備考を入力" oninput="saveRegisterDraft()"></textarea>
+          </div>
+          <button type="button" class="register-submit" onclick="confirmRegisterItem(event)">登録する</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="register-panel" id="register-panel-scan">
+      <div class="register-scroll">
+        <div class="register-quick-box">
+          <div class="register-quick-card">
+            <div class="register-quick-title">📷 スキャンして登録</div>
+            <div class="register-quick-sub">バーコードや本の表紙を読み取り、すぐにアイテムを追加できます。</div>
+            <button class="register-scan-btn" onclick="switchScreen('scan')">スキャン開始</button>
+            <label class="register-file-picker">
+              画像から読み込む
+              <input type="file" accept="image/*" onchange="onRegisterImageSelected(this); saveRegisterDraft();">
+            </label>
+            <div class="register-inline-note">※ スキャン時は既存のカメラ画面へ遷移します</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ BOTTOM NAV ════ -->
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-shelf"    onclick="switchScreen('shelf')"><div class="nav-icon">📚</div><div>コレクション</div></div>
+  <div class="nav-item"        id="nav-register" onclick="switchScreen('register')"><div class="nav-icon">➕</div><div>登録</div></div>
+  <div class="nav-item"        id="nav-search"   onclick="switchScreen('search')"><div class="nav-icon">🔍</div><div>検索</div></div>
+  <div class="nav-item"        id="nav-share"    onclick="switchScreen('share')"><div class="nav-icon">🤝</div><div>共有</div></div>
+  <div class="nav-item"        id="nav-settings" onclick="switchScreen('settings')"><div class="nav-icon">⚙️</div><div>設定</div></div>
+</div>
+<!-- shelf name input -->
+<div class="modal-overlay" id="shelf-input-modal">
+  <div class="modal-sheet">
+    <div class="modal-title" id="shelf-input-title">棚の名前</div>
+    <div class="modal-sub"   id="shelf-input-sub"></div>
+    <input class="modal-input" id="shelf-input-field" type="text" maxlength="20" onkeydown="if(event.key==='Enter')confirmShelfInput()">
+    <div class="modal-btns">
+      <button class="modal-btn cancel"  onclick="cancelShelfInput()">キャンセル</button>
+      <button class="modal-btn confirm" onclick="confirmShelfInput()">決定</button>
+    </div>
+  </div>
+</div>
+<!-- move book -->
+<div class="modal-overlay" id="move-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">アイテムを移動する</div>
+    <div class="modal-sub" id="move-modal-book"></div>
+    <div class="move-list" id="move-shelf-list"></div>
+    <button class="modal-btn cancel" style="margin-top:12px;width:100%" onclick="closeMoveModal()">キャンセル</button>
+  </div>
+</div>
+
+
+<!-- rows select modal -->
+<div class="modal-overlay" id="manual-add-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">アイテムを手動登録</div>
+    <div class="modal-sub">カテゴリ：<span id="manual-add-category">アイテム</span></div>
+    <input class="modal-input" id="manual-add-title" type="text" placeholder="タイトル" maxlength="80">
+    <input class="modal-input" id="manual-add-creator" type="text" placeholder="著者・制作・出演" maxlength="80" style="margin-top:10px">
+    <input class="modal-input" id="manual-add-year" type="text" placeholder="年（任意）" maxlength="4" style="margin-top:10px">
+    <textarea class="modal-input" id="manual-add-note" placeholder="メモ・説明（任意）" style="margin-top:10px;height:100px;resize:none"></textarea>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="cancelManualAdd()">キャンセル</button>
+      <button class="modal-btn confirm" onclick="confirmManualAdd()">追加</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rows-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">段数を選択</div>
+    <div class="modal-sub" id="rows-modal-sub">この棚の段数を選んでください</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px" id="rows-options"></div>
+    <button class="modal-btn cancel" style="margin-top:14px;width:100%" onclick="closeRowsModal()">キャンセル</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════════════════
+// Supabase REST（publishable key はブラウザアプリで利用する公開用キーです）
+const SUPABASE_REST_URL = 'https://foyqbkjswjudeofteqbk.supabase.co/rest/v1';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_aB3s0OfzXU4JxTRIo9y_xA_9NVkqXdZ';
+const SUPABASE_AUTH_URL = SUPABASE_REST_URL.replace('/rest/v1','/auth/v1');
+const REMOTE_MEDIA_PREFIX = 'photoshelf-';
+let authSession = safeParse(localStorage.getItem('photoshelf_auth_session') || 'null', null);
+
+function getCurrentUserId(){
+  const user = authSession && authSession.user ? authSession.user : null;
+  if (user && user.id) return String(user.id);
+  if (authSession && authSession.user_id) return String(authSession.user_id);
+  if (authSession && authSession.access_token) {
+    try {
+      const payload = JSON.parse(atob(authSession.access_token.split('.')[1]));
+      if (payload.sub) return String(payload.sub);
+    } catch (error) {
+      console.warn('ログインユーザーIDを取得できません', error);
+    }
+  }
+  return 'guest';
+}
+function getScopedStorageKey(baseKey){
+  return `${baseKey}_${encodeURIComponent(getCurrentUserId())}`;
+}
+function safeParse(raw, fallback){
+  try{ const v=JSON.parse(raw); return v===undefined?fallback:v; }catch(e){ return fallback; }
+}
+function normalizeItem(item,index=0){
+  if(!item.position) item.position={row:0,order:index};
+  item.categoryId=parseInt(item.categoryId,10)||1;
+  if(item.shelf!==undefined) item.shelf=parseInt(item.shelf,10)||item.categoryId;
+  if(!item.tags) item.tags=[];
+  if(!item.createdAt) item.createdAt=new Date().toISOString();
+  if(!item.updatedAt) item.updatedAt=new Date().toISOString();
+  if(item.author===undefined) item.author = item.subtitle || '';
+  if(item.genre===undefined) item.genre = item.tags[0] || '';
+  if(item.publisher===undefined) item.publisher = (item.metadata && item.metadata.publisher) || '';
+  if(item.year===undefined) item.year = (item.metadata && item.metadata.year) || 0;
+  if(item.pages===undefined) item.pages = (item.metadata && item.metadata.pages) || 0;
+  if(item.coverUrl===undefined) item.coverUrl = item.imageUrl || '';
+  if(item.color===undefined) item.color = randomColor();
+  if(item.memo===undefined) item.memo = '';
+  if(item.row===undefined) item.row = item.position.row;
+  if(item.order===undefined) item.order = item.position.order;
+  return item;
+}
+function normalizeItems(items=[]){
+  return Array.isArray(items) ? items.map((item,index)=>normalizeItem(item,index)) : [];
+}
+function getDefaultItems(){
+  return [
+    {id:1,title:'騎士団長殺し',subtitle:'村上 春樹',description:'村上春樹の小説',imageUrl:'',categoryId:1,tags:['文学'],status:'done',metadata:{year:2017,publisher:'新潮社',pages:704},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),position:{row:0,order:0}},
+    {id:2,title:'百年の孤独',subtitle:'G・G・マルケス',description:'海外文学の代表作',imageUrl:'',categoryId:1,tags:['海外文学'],status:'reading',metadata:{year:1967,publisher:'新潮社',pages:480},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),position:{row:0,order:1}},
+    {id:3,title:'人間失格',subtitle:'太宰 治',description:'古典文学',imageUrl:'',categoryId:1,tags:['文学'],status:'done',metadata:{year:1948,publisher:'新潮文庫',pages:152},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),position:{row:0,order:2}},
+  ];
+}
+function getUserScopedItems(){
+  const storageKey = getScopedStorageKey('photoshelf_items');
+  const scopedRaw = localStorage.getItem(storageKey);
+  if (scopedRaw) return normalizeItems(safeParse(scopedRaw, []));
+
+  if (getCurrentUserId() === 'guest') {
+    const legacyRaw = localStorage.getItem('photoshelf_items');
+    if (legacyRaw) {
+      const legacyItems = normalizeItems(safeParse(legacyRaw, []));
+      localStorage.setItem(storageKey, JSON.stringify(legacyItems));
+      return legacyItems;
+    }
+  }
+
+  // 認証済みユーザーには他ユーザーのサンプルや旧データを見せない。
+  const initialItems = getCurrentUserId() === 'guest' ? getDefaultItems() : [];
+  localStorage.setItem(storageKey, JSON.stringify(initialItems));
+  return normalizeItems(initialItems);
+}
+function getDefaultCategories(){
+  return [
+    {id:1,name:'マイコレクション',color:'#8B4A8B',rows:3,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
+  ];
+}
+function getUserScopedCategories(){
+  const storageKey = getScopedStorageKey('ps_categories');
+  const scopedRaw = localStorage.getItem(storageKey);
+  if (scopedRaw) {
+    return safeParse(scopedRaw, []).map(category => ({
+      ...category,
+      rows: category.rows || 3,
+      createdAt: category.createdAt || new Date().toISOString(),
+      updatedAt: category.updatedAt || new Date().toISOString()
+    }));
+  }
+
+  if (getCurrentUserId() === 'guest') {
+    const legacyRaw = localStorage.getItem('ps_categories');
+    if (legacyRaw) {
+      const legacyCategories = safeParse(legacyRaw, []).map(category => ({
+        ...category,
+        rows: category.rows || 3,
+        createdAt: category.createdAt || new Date().toISOString(),
+        updatedAt: category.updatedAt || new Date().toISOString()
+      }));
+      localStorage.setItem(storageKey, JSON.stringify(legacyCategories));
+      return legacyCategories;
+    }
+  }
+
+  const defaultCategories = getDefaultCategories();
+  localStorage.setItem(storageKey, JSON.stringify(defaultCategories));
+  return defaultCategories;
+}
+
+let ITEMS = getUserScopedItems();
+let nextId = Math.max(...ITEMS.map(item=>item.id),0)+1;
+let currentItem = null;
+let currentShelfIndex = 0;
+let currentStatusFilter = 'all';
+let currentSearchQuery = '';
+let previousScreen = 'shelf';
+let showStatusesAsTags = true;
+
+let CATEGORIES = getUserScopedCategories();
+CATEGORIES.forEach(c=>{ if(!c.rows) c.rows=3; });
+let SHELF_DEFS = CATEGORIES;
+
+function getCategoryName(id){var found=CATEGORIES.find(function(c){return c.id===id}); return found ? found.name : 'アイテム';}
+function getCurrentCategoryId(){var current = CATEGORIES[currentShelfIndex] || CATEGORIES[0]; return current && current.id ? current.id : 1;}
+function getCurrentCategory(){return CATEGORIES[currentShelfIndex] || CATEGORIES[0] || {id:1,name:'アイテム',color:'#8B4A8B',rows:3};}
+function getCurrentShelfId(){return getCurrentCategoryId();}
+function saveItems(){
+  const orderByShelfRow={};
+  ITEMS.forEach(item=>{
+    const key=`${item.categoryId}:${item.row||0}`;
+    item.position=item.position || {};
+    item.position.row=item.row||0;
+    item.position.order=orderByShelfRow[key] || 0;
+    item.order=item.position.order;
+    orderByShelfRow[key]=(orderByShelfRow[key] || 0)+1;
+  });
+  const storageKey = getScopedStorageKey('photoshelf_items');
+  localStorage.setItem(storageKey, JSON.stringify(ITEMS));
+  if (getCurrentUserId() === 'guest') localStorage.setItem('photoshelf_items', JSON.stringify(ITEMS));
+}
+function saveCategories(){
+  const storageKey = getScopedStorageKey('ps_categories');
+  localStorage.setItem(storageKey, JSON.stringify(CATEGORIES));
+  if (getCurrentUserId() === 'guest') localStorage.setItem('ps_categories', JSON.stringify(CATEGORIES));
+}
+function saveShelfDefs(){saveCategories();}
+function saveBooks(){saveItems();}
+function saveStatusOptions(){localStorage.setItem('ps_status_options',JSON.stringify(STATUS_OPTIONS))}
+
+function refreshUserScopedData(){
+  ITEMS = getUserScopedItems();
+  CATEGORIES = getUserScopedCategories();
+  SHELF_DEFS = CATEGORIES;
+  currentLayout = localStorage.getItem(getScopedStorageKey('ps_layout')) || 'spine';
+  shelfConfig = getUserShelfConfig();
+  applyShelfConfig();
+  initShelfConfigUI();
+  updatePreview();
+  currentShelfIndex = 0;
+  CATEGORIES.forEach(c=>{ if(!c.rows) c.rows=3; });
+  nextId = Math.max(...ITEMS.map(item=>item.id),0)+1;
+  if (typeof renderShelf === 'function') renderShelf();
+  if (typeof renderShare === 'function') renderShare();
+  if (typeof updateCounts === 'function') updateCounts();
+  if (typeof updateAuthStatus === 'function') updateAuthStatus();
+}
+
+async function supabaseRequest(path, options={}){
+  const headers={
+    apikey:SUPABASE_PUBLISHABLE_KEY,
+    Authorization:`Bearer ${(authSession && authSession.access_token) || SUPABASE_PUBLISHABLE_KEY}`,
+    ...(options.body ? {'Content-Type':'application/json'} : {}),
+    ...(options.headers || {})
+  };
+  const response=await fetch(`${SUPABASE_REST_URL}/${path}`, {...options,headers});
+  if(!response.ok){
+    const detail=await response.text();
+    throw new Error(`Supabase ${response.status}: ${detail}`);
+  }
+  const body=await response.text();
+  return body ? JSON.parse(body) : null;
+}
+function updateAuthStatus(){
+  const status=document.getElementById('auth-status');
+  const loginButton=document.getElementById('auth-login-button');
+  const logoutButton=document.getElementById('auth-logout-button');
+  const email=authSession && authSession.user && authSession.user.email;
+  if(status) status.textContent=email ? `${email} でログイン中` : 'ログインしていません';
+  if(loginButton) loginButton.style.display=email ? 'none' : 'block';
+  if(logoutButton) logoutButton.style.display=email ? 'block' : 'none';
+}
+function openLoginScreen(){
+  document.getElementById('auth-error').textContent='';
+  switchScreen('login');
+}
+function openSignupScreen(){
+  document.getElementById('signup-error').textContent='';
+  switchScreen('signup');
+}
+async function authRequest(path, body){
+  const response=await fetch(`${SUPABASE_AUTH_URL}/${path}`,{
+    method:'POST',
+    headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(data.error_description || data.msg || data.message || '認証に失敗しました');
+  return data;
+}
+function translateAuthError(message){
+  const text=String(message||'');
+  if(/invalid format|invalid email/i.test(text)) return 'メールアドレスの形式が正しくありません';
+  if(/email.*already|already.*registered|user already/i.test(text)) return 'このメールアドレスはすでに登録されています';
+  if(/invalid login credentials|invalid password/i.test(text)) return 'メールアドレスまたはパスワードが正しくありません';
+  if(/password.*(short|characters)|weak password/i.test(text)) return 'パスワードは6文字以上で入力してください';
+  if(/email.*not.*confirmed/i.test(text)) return 'メールアドレスの確認が完了していません';
+  if(/rate limit|too many/i.test(text)) return '試行回数が多すぎます。しばらくしてから再試行してください';
+  return '認証に失敗しました。入力内容を確認してください';
+}
+async function loginUser(){
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  const error=document.getElementById('auth-error');
+  if(!email || !password){error.textContent='メールアドレスとパスワードを入力してください';return}
+  error.textContent='ログイン中...';
+  try{
+    authSession=await authRequest('token?grant_type=password',{email,password});
+    localStorage.setItem('photoshelf_auth_session',JSON.stringify(authSession));
+    refreshUserScopedData();
+    updateAuthStatus();
+    await loadRemoteMediaItems();
+    await syncAllLocalItems();
+    showToast('✅ ログインしました');
+    switchScreen('settings');
+  }catch(errorValue){error.textContent=translateAuthError(errorValue.message)}
+}
+async function signupUser(){
+  const email=document.getElementById('signup-email').value.trim();
+  const password=document.getElementById('signup-password').value;
+  const passwordConfirm=document.getElementById('signup-password-confirm').value;
+  const error=document.getElementById('signup-error');
+  if(!email || password.length<6){error.textContent='メールアドレスと6文字以上のパスワードを入力してください';return}
+  if(password!==passwordConfirm){error.textContent='パスワードが一致していません';return}
+  error.textContent='アカウント作成中...';
+  try{
+    const data=await authRequest('signup',{email,password});
+    if(data.access_token){
+      authSession=data;localStorage.setItem('photoshelf_auth_session',JSON.stringify(data));updateAuthStatus();
+      refreshUserScopedData();
+    }
+    document.getElementById('resend-confirmation-button').style.display='block';
+    error.textContent='確認メールを送信しました。届かない場合は再送してください';
+  }catch(errorValue){error.textContent=translateAuthError(errorValue.message)}
+}
+async function resendConfirmationEmail(){
+  const email=document.getElementById('signup-email').value.trim();
+  const error=document.getElementById('signup-error');
+  if(!email){error.textContent='メールアドレスを入力してください';return}
+  try{
+    await authRequest('resend',{type:'signup',email});
+    error.textContent='確認メールを再送しました。迷惑メールフォルダーも確認してください';
+  }catch(errorValue){error.textContent=translateAuthError(errorValue.message)}
+}
+function logoutUser(){
+  authSession=null;
+  localStorage.removeItem('photoshelf_auth_session');
+  // ログアウト後は前ユーザーの本を画面に残さない。
+  ITEMS=[];
+  CATEGORIES=getDefaultCategories();
+  SHELF_DEFS=CATEGORIES;
+  localStorage.removeItem('photoshelf_items');
+  localStorage.removeItem('ps_categories');
+  localStorage.setItem('photoshelf_items_guest',JSON.stringify([]));
+  localStorage.setItem('ps_categories_guest',JSON.stringify(CATEGORIES));
+  localStorage.removeItem('ps_layout_guest');
+  shelfConfig=getDefaultShelfConfig();
+  applyShelfConfig();
+  initShelfConfigUI();
+  updatePreview();
+  currentLayout='spine';
+  currentShelfIndex=0;
+  currentItem=null;
+  nextId=1;
+  renderShelf();
+  updateAuthStatus();
+  showToast('ログアウトしました');
+}
+function remoteMediaToItem(media){
+  const remotePrefix = `${REMOTE_MEDIA_PREFIX}${getCurrentUserId()}-`;
+  const linkedId=String(media.external_id || '').startsWith(remotePrefix)
+    ? Number(String(media.external_id).slice(remotePrefix.length)) : 0;
+  const remoteTitle=(media.title || '').trim().toLowerCase();
+  const remoteAuthor=(media.author_or_creator || '').trim().toLowerCase();
+  const existing=ITEMS.find(item=>
+    (linkedId && item.id===linkedId) ||
+    (remoteTitle && (item.title||'').trim().toLowerCase()===remoteTitle && (item.author||item.subtitle||'').trim().toLowerCase()===remoteAuthor)
+  );
+  if(existing) return null;
+  const id=nextId++;
+  return {
+    id,title:media.title || '無題',author:media.author_or_creator || '',
+    externalId:media.external_id || '',
+    description:'Supabaseから同期したアイテム',coverUrl:media.image_url || '',imageUrl:media.image_url || '',
+    categoryId:getCurrentCategoryId(),shelf:getCurrentCategoryId(),row:0,
+    tags:media.media_type ? [media.media_type] : [],genre:media.media_type || '',
+    status:'tsundoku',rating:0,color:randomColor(),memo:'',
+    metadata:{year:0,publisher:'',pages:0},createdAt:media.created_at || new Date().toISOString(),updatedAt:new Date().toISOString(),
+    position:{row:0,order:ITEMS.length}
+  };
+}
+function removeDuplicateItems(){
+  const seen=new Set();
+  ITEMS=ITEMS.filter(item=>{
+    const title=(item.title||'').trim().toLowerCase();
+    const author=(item.author||item.subtitle||'').trim().toLowerCase();
+    const key=(title && `${title}|${author}`) || item.externalId;
+    if(!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+async function loadRemoteMediaItems(){
+  try{
+    const userId = getCurrentUserId();
+    if (userId === 'guest') return;
+    const beforeCleanup=ITEMS.length;
+    removeDuplicateItems();
+    const cleanedCount=beforeCleanup-ITEMS.length;
+    const userFilter = userId && userId !== 'guest' ? `&user_id=eq.${encodeURIComponent(userId)}` : '';
+    const media=await supabaseRequest(`media_items?select=id,external_id,title,media_type,image_url,author_or_creator,created_at,user_id&order=created_at.asc${userFilter}`);
+    const beforeCount=ITEMS.length;
+    const imported=media.map(remoteMediaToItem).filter(Boolean);
+    ITEMS.push(...imported);
+    removeDuplicateItems();
+    const addedCount=ITEMS.length-beforeCount;
+    if(addedCount<=0 && imported.length===0 && cleanedCount<=0) return;
+    saveItems(); renderShelf(); renderShare();
+    showToast(`☁️ ${addedCount}件を同期しました`);
+  }catch(error){
+    console.warn('Supabase media load failed',error);
+  }
+}
+async function syncAllLocalItems(){
+  if (getCurrentUserId() === 'guest') return;
+  for (const item of ITEMS) await syncMediaItem(item);
+}
+async function syncMediaItem(item){
+  const userId = getCurrentUserId();
+  if (userId === 'guest') return false;
+  const externalId = `${REMOTE_MEDIA_PREFIX}${userId}-${item.id}`;
+  const payload={
+    external_id:externalId,
+    title:item.title,
+    media_type:(item.tags && item.tags[0]) || 'book',
+    image_url:item.coverUrl || item.imageUrl || null,
+    author_or_creator:item.author || '',
+    user_id:userId
+  };
+  try{
+    const legacyExternalId = `${REMOTE_MEDIA_PREFIX}${item.id}`;
+    const legacyRows = await supabaseRequest(`media_items?select=id&external_id=eq.${encodeURIComponent(legacyExternalId)}&user_id=is.null`);
+    if (legacyRows && legacyRows.length) {
+      await supabaseRequest(`media_items?external_id=eq.${encodeURIComponent(legacyExternalId)}&user_id=is.null`, {
+        method:'PATCH',
+        headers:{Prefer:'return=minimal'},
+        body:JSON.stringify({...payload, external_id:externalId})
+      });
+      return true;
+    }
+    await supabaseRequest('media_items',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});
+    return true;
+  }catch(error){
+    console.warn('Supabase media sync failed',error);
+    return false;
+  }
+}
+
+// ════════════════════════════════════════════════════
+//  SPINE / COVER HELPERS
+// ════════════════════════════════════════════════════
+function getSpineWidth(p){if(!p||p<100)return 10;if(p<200)return 13;if(p<300)return 16;if(p<450)return 20;if(p<600)return 24;return 28}
+function getSpineHeight(p){if(!p||p<150)return 88;if(p<300)return 100;if(p<500)return 110;return 118}
+function lightenColor(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgb(${Math.min(255,r+a)},${Math.min(255,g+a)},${Math.min(255,b+a)})`}
+function darkenColor(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgb(${Math.max(0,r-a)},${Math.max(0,g-a)},${Math.max(0,b-a)})`}
+function randomColor(){const p=['#8B3A3A','#3A5F8B','#5F8B3A','#8B7A3A','#7A3A8B','#8B5C3A','#3A8B7A','#6A3A8B','#3A6A8B','#4A8B3A'];return p[Math.floor(Math.random()*p.length)]}
+
+function renderBook(item, dim=false){
+  var pages = item.pages || ((item.metadata && item.metadata.pages) || 0);
+  const w=getSpineWidth(pages), h=getSpineHeight(pages);
+  const cover = item.coverUrl || item.imageUrl || '';
+  const showCover = item.displayMode ? item.displayMode==='cover' : currentLayout==='cover';
+  const coverW=72, coverH=108;
+  let inner;
+  if(showCover){
+    inner = cover
+      ? `<div class="book-cover-wrap" style="width:${coverW}px;height:${coverH}px;"><img class="book-cover-img" src="${cover}" width="${coverW}" height="${coverH}" draggable="false" style="object-fit:contain;background:#fff" onerror="this.parentElement.innerHTML='<div class=book-spine-fallback style=width:${coverW}px;height:${coverH}px;background:linear-gradient(135deg,${lightenColor(item.color,20)},${item.color},${darkenColor(item.color,20)})><div style=font-size:10px;font-weight:600;color:white;text-align:center;padding:6px;line-height:1.35>${item.title}</div></div>'"></div>`
+      : `<div class="book-spine-fallback" style="width:${coverW}px;height:${coverH}px;background:linear-gradient(135deg,${lightenColor(item.color,20)} 0%,${item.color} 40%,${darkenColor(item.color,20)} 100%)"><div style="font-size:10px;font-weight:600;color:rgba(255,255,255,.9);text-align:center;padding:6px;line-height:1.35">${item.title}</div></div>`;
+  } else {
+    inner = cover
+      ? `<div class="book-cover-wrap" style="width:${w+6}px;height:${h}px;"><img class="book-cover-img" src="${cover}" width="${w+6}" height="${h}" draggable="false" onerror="this.parentElement.innerHTML='<div class=book-spine-fallback style=width:${w}px;height:${h}px;background:linear-gradient(135deg,${lightenColor(item.color,20)},${item.color},${darkenColor(item.color,20)})><div class=book-title-spine>${item.title}</div></div>'"></div>`
+      : `<div class="book-spine-fallback" style="width:${w}px;height:${h}px;background:linear-gradient(135deg,${lightenColor(item.color,20)} 0%,${item.color} 40%,${darkenColor(item.color,20)} 100%)"><div class="book-title-spine">${item.title}</div></div>`;
+  }
+  const dimStyle = dim ? 'opacity:.15;filter:saturate(.15);' : '';
+  return `<div class="book" data-id="${item.id}" style="${dimStyle}" ontouchstart="dragStart(event,${item.id})" ontouchend="bookTouchEnd(event,${item.id})" onmousedown="dragStart(event,${item.id})" onmouseup="onDragEnd(event)" onclick="bookClick(event,${item.id})" title="${item.title}">${inner}</div>`;
+}
+
+// ════════════════════════════════════════════════════
+//  RENDER SHELF
+// ════════════════════════════════════════════════════
+let currentLayout = localStorage.getItem(getScopedStorageKey('ps_layout')) || 'spine';
+
+function renderShelf(){
+  renderCategoryTabs();
+  renderShelfById(getCurrentShelfId());
+  renderDesktopShelves();
+  updateCounts();
+  updateShelfIndicator();
+}
+
+function renderDesktopShelves(){
+  const grid=document.getElementById('desktop-shelf-grid');
+  if(!grid) return;
+  const categories=CATEGORIES.slice(0,3);
+  grid.innerHTML=categories.map(category=>`
+    <section class="desktop-shelf-card" data-shelf-card="${category.id}">
+      <div class="desktop-shelf-title">${category.name}</div>
+      <div class="shelf-scroll${currentLayout==='cover'?' cover-mode':''}">${buildShelfMarkup(category.id)}</div>
+    </section>`).join('');
+}
+
+function renderCategoryTabs(){
+  const tabs = document.getElementById('category-tabs');
+  if(!tabs) return;
+  tabs.innerHTML = CATEGORIES.map((category,index)=>`
+    <button class="room-tab${index===currentShelfIndex?' active':''}" id="room-${category.id}" onclick="switchRoomArea(${category.id})">${category.name}</button>
+  `).join('');
+}
+
+function updateShelfScrollHeight(){
+  const scroll = document.getElementById('shelf-scroll');
+  if(!scroll) return;
+  // 親のflexレイアウトに高さを委ねる。固定のmax-heightを指定すると、
+  // 画面下に本棚背景が届かず空白が生じる。
+  scroll.style.removeProperty('height');
+  scroll.style.removeProperty('max-height');
+}
+
+function renderShelfById(categoryId){
+  const scroll = document.getElementById('shelf-scroll');
+  if(!scroll) return;
+  scroll.innerHTML = buildShelfMarkup(categoryId);
+  scroll.scrollTop = 0;
+  updateShelfScrollHeight();
+  if(currentLayout==='cover') scroll.classList.add('cover-mode');
+  else scroll.classList.remove('cover-mode');
+  renderDesktopShelves();
+}
+
+function buildShelfMarkup(categoryId){
+  const def = CATEGORIES.find(d=>d.id===categoryId);
+  const numRows = (def && def.rows) || 3;
+  const allItems = ITEMS.filter(item=>item.categoryId===categoryId);
+  const isFiltered = currentStatusFilter !== 'all';
+  const isSearching = currentSearchQuery.trim().length > 0;
+  const q = currentSearchQuery.toLowerCase();
+
+  let h = '<div class="bookcase">';
+
+  // 段ごとに描画
+  for(let rowIdx=0; rowIdx<numRows; rowIdx++){
+    const rowBooks = allItems
+      .filter(item=>item.row===rowIdx)
+      .sort((a,b)=>(a.order ?? a.position?.order ?? 0)-(b.order ?? b.position?.order ?? 0));
+    const rendered = rowBooks.map(item=>{
+      const matchSearch = !isSearching || item.title.toLowerCase().includes(q) || (item.author||'').toLowerCase().includes(q) || (item.genre||'').toLowerCase().includes(q) || (item.tags||[]).some(tag=>tag.toLowerCase().includes(q));
+      const dim = (isFiltered && item.status !== currentStatusFilter) || (isSearching && !matchSearch);
+      return renderBook(item, dim);
+    }).join('');
+
+    const emptyMsg = rowBooks.length===0
+      ? `<div style="font-size:11px;color:rgba(255,255,255,.25);padding:0 8px;align-self:center">${rowIdx+1}段目</div>`
+      : '';
+
+    h += `<div class="shelf-row-wrap" data-shelf="${categoryId}" data-row="${rowIdx}">
+      <div class="shelf-row${editMode?' edit-mode':''}" data-row="${rowIdx}">${rendered}${emptyMsg}</div>
+      <div class="shelf-plank"></div>
+    </div>`;
+  }
+
+  if(allItems.length===0){
+    h += `<div class="empty-shelf-state"><div class="empty-shelf-graphic">📦</div><div class="empty-shelf-text">このカテゴリにはまだアイテムがありません。右下の「＋」ボタンから追加すると、ここに並びます。</div></div>`;
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function updateCounts(){
+  const currentCategoryId = getCurrentCategoryId();
+  const categoryItems = ITEMS.filter(item=>item.categoryId===currentCategoryId);
+  const totalBooksEl = document.getElementById('total-books');
+  const tsundokuCountEl = document.getElementById('tsundoku-count');
+  const readingCountEl = document.getElementById('reading-count');
+  const doneCountEl = document.getElementById('done-count');
+  if(totalBooksEl) totalBooksEl.textContent = categoryItems.length;
+  if(tsundokuCountEl) tsundokuCountEl.textContent = categoryItems.filter(item=>item.status==='tsundoku').length;
+  if(readingCountEl) readingCountEl.textContent = categoryItems.filter(item=>item.status==='reading').length;
+  if(doneCountEl) doneCountEl.textContent = categoryItems.filter(item=>item.status==='done').length;
+}
+
+// ════════════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════════════
+function switchScreen(name){
+  console.log('switchScreen ->', name);
+  const activeScreen = document.querySelector('.screen.active');
+  const currentName = activeScreen && activeScreen.id ? activeScreen.id.replace('screen-','') : null;
+  if(currentName && currentName !== name && name !== 'detail'){
+    previousScreen = currentName;
+  }
+  document.querySelectorAll('.screen').forEach(s=>{
+    const isActive = s.id === 'screen-' + name;
+    s.classList.toggle('active', isActive);
+    s.style.display = isActive ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  var navEl = document.getElementById('nav-'+name); if(navEl) navEl.classList.add('active');
+  const fab = document.getElementById('scan-fab');
+  if(fab) fab.style.display = name==='shelf' ? 'flex' : 'none';
+  if(name==='shelf'){
+    document.getElementById('sttab-list')?.classList.add('active');
+    document.getElementById('sttab-booklist')?.classList.remove('active');
+    renderShelf();
+  }
+  if(name==='scan') setScanTab('shelf');
+  if(name==='register') renderRegisterScreen();
+  if(name==='search'){ setSearchTab('myshelf'); doMyShelfSearch(''); document.getElementById('myshelf-input').value=''; }
+  if(name==='share') renderShare();
+  if(name==='community') renderCommunity();
+  if(name==='booklist') renderBooklist(currentBooklistFilter);
+}
+
+const registerTabState = {
+  mode: 'manual',
+  draft: {
+    title: '',
+    categoryId: '',
+    tags: '',
+    creator: '',
+    year: '',
+    note: '',
+    imageData: '',
+    imageName: '画像を選択しない'
+  }
+};
+
+function setRegisterTab(mode){
+  registerTabState.mode = mode;
+  document.querySelectorAll('.register-tab').forEach(tab => tab.classList.toggle('active', tab.id === ('register-tab-' + mode)));
+  document.querySelectorAll('.register-panel').forEach(panel => {
+    const isActive = panel.id === ('register-panel-' + mode);
+    panel.classList.toggle('active', isActive);
+    panel.style.display = isActive ? 'flex' : 'none';
+  });
+  if(mode === 'manual'){
+    const categorySelect = document.getElementById('register-category');
+    if(categorySelect && !categorySelect.value) categorySelect.value = registerTabState.draft.categoryId || getCurrentCategoryId();
+  }
+}
+
+function saveRegisterDraft(){
+  const titleField = document.getElementById('register-title');
+  const categoryField = document.getElementById('register-category');
+  const tagsField = document.getElementById('register-tags');
+  const creatorField = document.getElementById('register-creator');
+  const yearField = document.getElementById('register-year');
+  const noteField = document.getElementById('register-note');
+  const imageNameEl = document.getElementById('register-image-name');
+  registerTabState.draft = {
+    title: titleField ? titleField.value : '',
+    categoryId: categoryField ? categoryField.value : '',
+    tags: tagsField ? tagsField.value : '',
+    creator: creatorField ? creatorField.value : '',
+    year: yearField ? yearField.value : '',
+    note: noteField ? noteField.value : '',
+    imageData: registerTabState.draft.imageData || '',
+    imageName: imageNameEl ? imageNameEl.textContent : '画像を選択しない'
+  };
+}
+
+function onRegisterImageSelected(input){
+  const nameEl = document.getElementById('register-image-name');
+  if(nameEl){
+    const file = input && input.files && input.files[0];
+    nameEl.textContent = file ? file.name : '画像を選択しない';
+    if(file){
+      const reader = new FileReader();
+      reader.onload = function(){
+        registerTabState.draft.imageData = reader.result;
+        registerTabState.draft.imageName = file.name;
+        saveRegisterDraft();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      registerTabState.draft.imageData = '';
+    }
+  }
+}
+
+function renderRegisterCategoryOptions(){
+  const categorySelect = document.getElementById('register-category');
+  if(!categorySelect) return;
+  const current = registerTabState.draft.categoryId || getCurrentCategoryId();
+  categorySelect.innerHTML = CATEGORIES.map(category => `
+    <option value="${category.id}">${category.name}</option>
+  `).join('');
+  const fallback = CATEGORIES.some(category => category.id === current) ? current : (CATEGORIES[0] ? CATEGORIES[0].id : '');
+  categorySelect.value = fallback;
+  if(!registerTabState.draft.categoryId) registerTabState.draft.categoryId = fallback;
+}
+
+function renderRegisterScreen(){
+  renderRegisterCategoryOptions();
+  const titleField = document.getElementById('register-title');
+  const categoryField = document.getElementById('register-category');
+  const tagsField = document.getElementById('register-tags');
+  const creatorField = document.getElementById('register-creator');
+  const yearField = document.getElementById('register-year');
+  const noteField = document.getElementById('register-note');
+  const imageNameEl = document.getElementById('register-image-name');
+  const defaultCategoryId = getCurrentCategoryId();
+  if(!registerTabState.draft || !registerTabState.draft.title && !registerTabState.draft.creator && !registerTabState.draft.note){
+    registerTabState.draft = {
+      title: '',
+      categoryId: defaultCategoryId,
+      tags: '',
+      creator: '',
+      year: '',
+      note: '',
+      imageData: '',
+      imageName: '画像を選択しない'
+    };
+  }
+  if(titleField) titleField.value = registerTabState.draft.title || '';
+  if(categoryField) categoryField.value = registerTabState.draft.categoryId || defaultCategoryId;
+  if(tagsField) tagsField.value = registerTabState.draft.tags || '';
+  if(creatorField) creatorField.value = registerTabState.draft.creator || '';
+  if(yearField) yearField.value = registerTabState.draft.year || '';
+  if(noteField) noteField.value = registerTabState.draft.note || '';
+  if(imageNameEl) imageNameEl.textContent = registerTabState.draft.imageName || '画像を選択しない';
+  setRegisterTab(registerTabState.mode || 'manual');
+}
+
+async function confirmRegisterItem(event){
+  if(event && event.preventDefault) event.preventDefault();
+  if (getCurrentUserId() === 'guest') {
+    showToast('本を登録するにはログインしてください');
+    switchScreen('login');
+    return;
+  }
+  var titleEl = document.getElementById('register-title'); const title = titleEl ? titleEl.value.trim() : '';
+  var creatorEl = document.getElementById('register-creator'); const creator = creatorEl ? creatorEl.value.trim() : '';
+  var yearEl = document.getElementById('register-year'); const year = yearEl ? yearEl.value.trim() : '';
+  var noteEl = document.getElementById('register-note'); const note = noteEl ? noteEl.value.trim() : '';
+  var tagsEl = document.getElementById('register-tags'); const tagsRaw = tagsEl ? tagsEl.value.trim() : '';
+  var categoryEl = document.getElementById('register-category'); const categoryId = categoryEl ? (parseInt(categoryEl.value,10) || getCurrentCategoryId()) : getCurrentCategoryId();
+  if(!title){ showToast('タイトルを入力してください'); return; }
+  const positionIndex = ITEMS.filter(i=>i.categoryId===categoryId).length;
+  const tags = tagsRaw ? tagsRaw.split(',').map(tag => tag.trim()).filter(Boolean) : [];
+  const coverUrl = registerTabState.draft.imageData || '';
+  const item = {
+    id: nextId++,
+    title,
+    subtitle: creator || '',
+    author: creator || '',
+    description: note || '',
+    imageUrl: coverUrl,
+    coverUrl,
+    categoryId,
+    shelf: categoryId,
+    tags,
+    status: 'tsundoku',
+    rating: 0,
+    metadata: {year: parseInt(year) || 0, publisher:'', pages:0},
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    position: {row:0,order:positionIndex},
+    row:0,
+    color: randomColor(),
+    memo: '',
+  };
+  ITEMS.push(item);
+  saveItems();
+  const synced = await syncMediaItem(item);
+  saveRegisterDraft();
+  showToast(synced ? `✅ 「${item.title}」を登録しました` : `✅ 「${item.title}」を登録しました（クラウド保存失敗）`);
+  switchScreen('shelf');
+}
+
+function switchRoomArea(room){
+  const category = CATEGORIES.find(c=>c.id===room);
+  if(category) {
+    currentShelfIndex = CATEGORIES.indexOf(category);
+    renderCategoryTabs();
+    renderShelf();
+    showToast(`📁 ${category.name||'アイテム'}を表示中`);
+  }
+}
+
+function goBack(){
+  const targetScreen = previousScreen || 'shelf';
+  switchScreen(targetScreen);
+}
+
+function openBook(id){
+  const now=Date.now();
+  if(openBook._last && openBook._last.id===id && now-openBook._last.at<500) return;
+  openBook._last={id:id,at:now};
+  var activeScreen = document.querySelector('.screen.active');
+  previousScreen = activeScreen && activeScreen.id ? activeScreen.id.replace('screen-','') : 'shelf';
+  currentItem = ITEMS.find(item=>item.id===id);
+  if(!currentItem) return;
+  renderDetail(currentItem);
+  switchScreen('detail');
+  var scanFab = document.getElementById('scan-fab');
+  if(scanFab) scanFab.style.display='none';
+}
+
+// ════════════════════════════════════════════════════
+//  SHELF TABS / FILTER / SEARCH
+// ════════════════════════════════════════════════════
+function setShelfTopTab(tab){
+  ['list','booklist'].forEach(function(t){var el=document.getElementById('sttab-'+t); if(el) el.classList.toggle('active',t===tab);});
+  if(tab==='list') switchScreen('shelf');
+  if(tab==='booklist'){switchScreen('booklist');renderBooklist('all')}
+}
+
+function setStatusFilter(filter){
+  currentStatusFilter = filter;
+  ['all','tsundoku','reading','done'].forEach(function(f){var el=document.getElementById('fc-'+f); if(el) el.classList.toggle('active',f===filter);});
+  renderShelfById(getCurrentShelfId());
+}
+
+function setLayout(mode){
+  currentLayout = mode;
+  ITEMS.forEach(item=>{ item.displayMode=mode; });
+  localStorage.setItem(getScopedStorageKey('ps_layout'),mode);
+  saveItems();
+  ['spine','cover'].forEach(function(m){var el=document.getElementById('layout-'+m); if(el) el.classList.toggle('active',m===mode);});
+  renderShelfById(getCurrentShelfId());
+}
+
+function onShelfSearch(val){
+  currentSearchQuery = val;
+  document.getElementById('shelf-search-clear').style.display = val ? 'block':'none';
+  renderShelfById(getCurrentShelfId());
+}
+function clearShelfSearch(){
+  currentSearchQuery = '';
+  document.getElementById('shelf-search-input').value='';
+  document.getElementById('shelf-search-clear').style.display='none';
+  renderShelfById(getCurrentShelfId());
+}
+
+// ════════════════════════════════════════════════════
+//  SHELF NAVIGATION (pages)
+// ════════════════════════════════════════════════════
+function updateShelfIndicator(){
+  document.getElementById('shelf-page-indicator').textContent=`${currentShelfIndex+1}/${SHELF_DEFS.length}`;
+  updateShelfNameTag(getCurrentShelfId());
+  updateRowsLabel();
+}
+function nextShelf(){
+  if(SHELF_DEFS.length<=1){showToast('「＋棚」で棚を追加できます');return}
+  currentShelfIndex=(currentShelfIndex+1)%SHELF_DEFS.length;
+  animateSwitchShelf();
+}
+function prevShelf(){
+  if(SHELF_DEFS.length<=1) return;
+  currentShelfIndex=(currentShelfIndex-1+SHELF_DEFS.length)%SHELF_DEFS.length;
+  animateSwitchShelf();
+}
+function animateSwitchShelf(){
+  const s=document.getElementById('shelf-scroll');
+  if(!s) return;
+  s.style.transition='opacity .12s';s.style.opacity='0';
+  setTimeout(()=>{renderShelfById(getCurrentShelfId());s.style.opacity='1';updateShelfIndicator();
+    const def=SHELF_DEFS[currentShelfIndex]; showToast((def && def.name ? def.name : '棚')+'　('+(currentShelfIndex+1)+'/'+SHELF_DEFS.length+')');},120);
+}
+function updateShelfNameTag(id){
+  const def=SHELF_DEFS.find(d=>d.id===id);
+  const el=document.getElementById('shelf-name-tag');
+  if(el) el.textContent='✏️ '+(def && def.name ? def.name : '棚 '+id);
+}
+
+// shelf input modal
+let _shelfInputCb=null;
+function openShelfInputModal(title,sub,val,cb){
+  _shelfInputCb=cb;
+  document.getElementById('shelf-input-title').textContent=title;
+  document.getElementById('shelf-input-sub').textContent=sub;
+  const f=document.getElementById('shelf-input-field');f.value=val;
+  document.getElementById('shelf-input-modal').classList.add('open');
+  setTimeout(()=>f.focus(),80);
+}
+function confirmShelfInput(){
+  const v=document.getElementById('shelf-input-field').value.trim();
+  document.getElementById('shelf-input-modal').classList.remove('open');
+  if(v&&_shelfInputCb) _shelfInputCb(v);
+  _shelfInputCb=null;
+}
+function cancelShelfInput(){document.getElementById('shelf-input-modal').classList.remove('open');_shelfInputCb=null}
+
+function renameShelf(){
+  const id=getCurrentShelfId();const def=SHELF_DEFS.find(d=>d.id===id);
+  openShelfInputModal('棚名を変更','新しい棚名を入力してください',def && def.name ? def.name : '棚 '+id,(name)=>{
+    if(def) def.name=name;saveShelfDefs();updateShelfNameTag(id);updateShelfIndicator();showToast('✅ 棚名を変更しました');
+  });
+}
+function addNewShelf(){
+  openShelfInputModal('新しい棚を追加','追加する棚の名前を入力してください',`棚 ${SHELF_DEFS.length+1}`,(name)=>{
+    const newId=Math.max(...SHELF_DEFS.map(d=>d.id),0)+1;
+    SHELF_DEFS.push({id:newId,name});saveShelfDefs();
+    currentShelfIndex=SHELF_DEFS.length-1;animateSwitchShelf();
+    showToast(`📚「${name}」を追加しました`);
+  });
+}
+
+// move modal
+let movingBookId=null;
+function openMoveModal(id){
+  console.log('openMoveModal ->', id);
+  movingBookId=id;const item=ITEMS.find(i=>i.id===id);if(!item) return;
+  document.getElementById('move-modal-book').textContent=`「${item.title}」`;
+  document.getElementById('move-shelf-list').innerHTML=SHELF_DEFS.map(def=>`
+    <button class="move-item${item.shelf===def.id?' current':''}" onclick="moveBookToShelf(${def.id})">
+      <span>${def.name}</span>
+      ${item.shelf===def.id?'<span class="move-item-cur-label">現在の棚</span>':''}
+    </button>`).join('');
+  document.getElementById('move-modal').classList.add('open');
+}
+function moveBookToShelf(shelfId){
+  const item=ITEMS.find(i=>i.id===movingBookId);
+  if(item){
+    const def=SHELF_DEFS.find(d=>d.id===shelfId);
+    item.shelf=shelfId;
+    item.row=0; // 移動後は1段目に
+    saveItems();closeMoveModal();
+    // 詳細画面から呼ばれた場合は所在棚を更新
+    if(currentItem&&currentItem.id===item.id) updateDetailShelfInfo(item);
+    renderShelfById(getCurrentShelfId());
+    var targetName = def && def.name ? def.name : '棚';
+    showToast('📚「'+targetName+'」に移動しました');
+  }
+}
+function closeMoveModal(){document.getElementById('move-modal').classList.remove('open');movingBookId=null}
+
+// ════════════════════════════════════════════════════
+//  DETAIL
+// ════════════════════════════════════════════════════
+let detailViewMode='spine';
+// 詳細から棚変更を開く
+function openMoveModalFromDetail(){
+  if(!currentItem) return;
+  openMoveModal(currentItem.id);
+}
+
+// 詳細の所在棚を更新
+function updateDetailShelfInfo(item){
+  const def = SHELF_DEFS.find(d=>d.id===item.shelf);
+  const nameEl = document.getElementById('detail-shelf-name');
+  const rowEl  = document.getElementById('detail-shelf-row');
+  if(nameEl) nameEl.textContent = def && def.name ? def.name : `棚 ${item.shelf}`;
+  if(rowEl)  rowEl.textContent  = `${(item.row||0)+1}段目`;
+}
+
+function renderDetail(item){
+  var pages=item.pages||((item.metadata && item.metadata.pages)||0)||0;
+  const cover = item.coverUrl || item.imageUrl || '';
+  const w=getSpineWidth(pages),h=getSpineHeight(pages);
+  const fallback=document.getElementById('detail-cover-fallback');
+  const side=document.getElementById('detail-cover-side');
+  detailViewMode=item.displayMode || 'spine';
+  document.getElementById('detail-view-spine').classList.toggle('active',detailViewMode==='spine');
+  document.getElementById('detail-view-cover').classList.toggle('active',detailViewMode==='cover');
+  if(cover){
+    fallback.style.cssText=`width:${(w+6)*2}px;height:${h*1.5}px;`;
+    fallback.innerHTML=`<img src="${cover}" style="width:100%;height:100%;object-fit:cover;border-radius:2px 8px 8px 2px;" onerror="this.remove()">`;
+  } else {
+    fallback.style.cssText=`width:${w*2.5}px;height:${h*1.5}px;background:linear-gradient(135deg,${lightenColor(item.color,25)} 0%,${item.color} 45%,${darkenColor(item.color,25)} 100%);`;
+    fallback.innerHTML=`<div style="writing-mode:vertical-rl;font-size:13px;font-weight:600;color:rgba(255,255,255,.9);padding:12px 6px;line-height:1.3">${item.title}</div>`;
+  }
+  side.style.background=darkenColor(item.color,40);side.style.display='';
+  document.getElementById('detail-title').textContent=item.title;
+  document.getElementById('detail-author').textContent=item.author||item.subtitle||'';
+  document.getElementById('detail-publisher').textContent=item.publisher||'';
+  document.getElementById('detail-tags').innerHTML=(item.categoryId?`<div class="detail-tag">${getCategoryName(item.categoryId)}</div>`:'')+
+    ((item.tags||[]).map(tag=>`<div class="detail-tag">${tag}</div>`).join(''))+
+    (item.year?`<div class="detail-tag">${item.year}年</div>`:'')+
+    (pages?`<div class="detail-tag">${pages}p</div>`:'');
+  document.getElementById('detail-meta').innerHTML=`
+    <div class="detail-meta-item"><div class="detail-meta-val">${pages||'?'}</div><div class="detail-meta-key">ページ</div></div>
+    <div class="detail-meta-item"><div class="detail-meta-val">${getSpineWidth(pages)}mm</div><div class="detail-meta-key">背幅(推定)</div></div>
+    <div class="detail-meta-item"><div class="detail-meta-val">${item.year||'?'}</div><div class="detail-meta-key">出版年</div></div>`;
+  if(item.description){document.getElementById('detail-desc-section').style.display='block';document.getElementById('detail-desc').textContent=item.description.slice(0,200)+(item.description.length>200?'…':'')}
+  else document.getElementById('detail-desc-section').style.display='none';
+  ['tsundoku','reading','done'].forEach(s=>document.getElementById('status-'+s).classList.toggle('active',item.status===s));
+  const stars=Math.round(item.rating||0);
+  document.getElementById('detail-stars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);
+  document.getElementById('detail-rating').textContent=(item.rating||0).toFixed(1);
+  const memo=document.getElementById('detail-memo');
+  if(item.memo) memo.textContent=item.memo;
+  else memo.innerHTML='<span class="memo-placeholder">メモ・感想をここに追加できます...</span>';
+  updateDetailShelfInfo(item);
+  setDetailView(detailViewMode);
+}
+
+function setDetailView(mode){
+  detailViewMode=mode;
+  document.getElementById('detail-view-spine').classList.toggle('active',mode==='spine');
+  document.getElementById('detail-view-cover').classList.toggle('active',mode==='cover');
+  if(!currentItem) return;
+  currentItem.displayMode=mode;
+  saveItems();
+  const w=getSpineWidth(currentItem.pages),h=getSpineHeight(currentItem.pages);
+  const fallback=document.getElementById('detail-cover-fallback');
+  const side=document.getElementById('detail-cover-side');
+  if(mode==='cover'){
+    // 表紙は標準的な縦横比（2:3）の枠にし、画像全体を収める。
+    const H=Math.min(170,Math.max(108,Math.round(h*1.45)));
+    const W=Math.round(H*2/3);
+    const cover=currentItem.coverUrl || currentItem.imageUrl || '';
+    fallback.style.cssText=`width:${W}px;height:${H}px;`;
+    if(cover){
+      fallback.innerHTML=`<img src="${cover}" style="width:100%;height:100%;object-fit:contain;background:#fff;border-radius:4px 10px 10px 4px;" onerror="this.remove()">`;
+    } else {
+      fallback.style.background=`linear-gradient(135deg,${lightenColor(currentItem.color,25)},${currentItem.color},${darkenColor(currentItem.color,25)})`;
+      fallback.innerHTML=`<div style="writing-mode:vertical-rl;font-size:13px;font-weight:600;color:rgba(255,255,255,.9);padding:12px 6px">${currentItem.title}</div>`;
+    }
+    side.style.display='none';
+  } else {
+    fallback.style.cssText=`width:${w*2.5}px;height:${h*1.5}px;background:linear-gradient(135deg,${lightenColor(currentItem.color,25)} 0%,${currentItem.color} 45%,${darkenColor(currentItem.color,25)} 100%);`;
+    fallback.innerHTML=`<div style="writing-mode:vertical-rl;font-size:13px;font-weight:600;color:rgba(255,255,255,.9);padding:12px 6px">${currentItem.title}</div>`;
+    side.style.background=darkenColor(currentItem.color,40);side.style.display='';
+  }
+}
+
+function setStatus(s){
+  if(!currentItem) return;
+  currentItem.status=s;
+  ['tsundoku','reading','done'].forEach(st=>document.getElementById('status-'+st).classList.toggle('active',s===st));
+  showToast({tsundoku:'📚 積読に設定',reading:'📖 読書中に設定',done:'✅ 読了しました！'}[s]);
+  saveItems();updateCounts();
+}
+function cycleRating(){
+  if(!currentItem) return;
+  currentItem.rating=((currentItem.rating||0)%5)+1;
+  const s=Math.round(currentItem.rating);
+  document.getElementById('detail-stars').textContent='★'.repeat(s)+'☆'.repeat(5-s);
+  document.getElementById('detail-rating').textContent=currentItem.rating.toFixed(1);
+  saveItems();
+}
+function saveMemo(){
+  if(!currentItem) return;
+  const t=document.getElementById('detail-memo').textContent.trim();
+  currentItem.memo=t==='メモ・感想をここに追加できます...'?'':t;saveItems();
+}
+function deleteCurrentBook(){
+  if(!currentItem) return;
+  if(!confirm(`「${currentItem.title}」を削除しますか？`)) return;
+  const deletedId=currentItem.id;
+  ITEMS=ITEMS.filter(item=>item.id!==deletedId);
+  saveItems();
+  currentItem=null;
+  switchScreen(previousScreen||'shelf');
+  showToast('🗑️ 本を削除しました');
+}
+
+// ════════════════════════════════════════════════════
+//  SCAN (demo)
+// ════════════════════════════════════════════════════
+const AI_STEPS_DATA=[
+  {icon:'📐',text:'台形補正・歪み補正中...'},
+  {icon:'✨',text:'画質クリア化・ノイズ除去...'},
+  {icon:'🔍',text:'アイテムを個別検出中...'},
+  {icon:'📖',text:'文字認識（OCR）実行中...'},
+  {icon:'🌐',text:'データベースと照合中...'},
+  {icon:'🎨',text:'コレクションに配置中...'},
+];
+function startScan(){
+  const prog=document.getElementById('ai-progress'),stepsEl=document.getElementById('ai-steps');
+  const bar=document.getElementById('ai-bar'),cnt=document.getElementById('ai-count');
+  stepsEl.innerHTML=AI_STEPS_DATA.map((s,i)=>`<div class="ai-step" id="aistep-${i}"><div class="ai-step-icon">${s.icon}</div><div class="ai-step-text">${s.text}</div></div>`).join('');
+  bar.style.width='0%';cnt.textContent='0';prog.classList.add('show');
+  let step=0;
+  function run(){
+    if(step>0){
+      var p=document.getElementById('aistep-'+(step-1));
+      if(p){p.classList.remove('active');p.classList.add('done');var ic=p.querySelector('.ai-step-icon'); if(ic) ic.textContent='✓'}
+    }
+    if(step>=AI_STEPS_DATA.length){bar.style.width='100%';cnt.textContent='3';setTimeout(()=>{prog.classList.remove('show');showToast('✅ スキャン完了！検索からアイテムを追加できます');switchScreen('search');setSearchTab('api');document.getElementById('api-search-input').value='村上春樹'},900);return}
+    var stepItem=document.getElementById('aistep-'+step); if(stepItem) stepItem.classList.add('active');
+    bar.style.width=Math.round((step+1)/AI_STEPS_DATA.length*100)+'%';
+    if(step===2)cnt.textContent='1';if(step===3)cnt.textContent='2';if(step===4)cnt.textContent='3';
+    step++;setTimeout(run,700+Math.random()*350);
+  }
+  run();
+}
+
+// ════════════════════════════════════════════════════
+//  SCAN MODE (棚スキャン / バーコードスキャン)
+// ════════════════════════════════════════════════════
+let scanMode = 'shelf'; // 'shelf' | 'barcode'
+
+function setScanTab(mode){
+  scanMode = mode;
+  document.getElementById('scantab-shelf').classList.toggle('active', mode==='shelf');
+  document.getElementById('scantab-barcode').classList.toggle('active', mode==='barcode');
+  document.getElementById('scan-illus-shelf').style.display   = mode==='shelf' ? 'flex' : 'none';
+  document.getElementById('scan-illus-barcode').style.display = mode==='barcode' ? 'flex' : 'none';
+  document.getElementById('scan-tips-shelf').style.display    = mode==='shelf' ? 'flex' : 'none';
+  document.getElementById('scan-tips-barcode').style.display  = mode==='barcode' ? 'flex' : 'none';
+  document.getElementById('scan-hint-text').textContent = mode==='shelf'
+    ? '棚全体をフレームに収めてください'
+    : 'バーコード(ISBN)をフレームに収めてください';
+}
+
+// スキャンボタンが押されたとき、モードに応じて処理を分岐
+function onScanBtnTap(){
+  console.log('onScanBtnTap ->', scanMode);
+  if(scanMode === 'shelf'){
+    startScan();
+  } else {
+    startBarcodeScan();
+  }
+}
+
+// Android Studio実機でのバーコードスキャン起動
+function startBarcodeScan(){
+  if(window.Android && typeof window.Android.startBarcodeScan === 'function'){
+    window.Android.startBarcodeScan();
+  } else {
+    // ブラウザプレビュー環境（Androidブリッジが無い場合）はデモ用ISBNで代用
+    showToast('📱 実機（Android）でのみカメラスキャンが動作します。デモ用ISBNで検索します');
+    setTimeout(()=>onBarcodeScanned('9784101001280'), 600); // 人間失格のISBN例
+  }
+}
+
+function openManualAddModal(){
+  console.log('openManualAddModal');
+  const category = getCurrentCategory();
+  document.getElementById('manual-add-category').textContent = category.name || 'アイテム';
+  document.getElementById('manual-add-title').value = '';
+  document.getElementById('manual-add-creator').value = '';
+  document.getElementById('manual-add-year').value = '';
+  document.getElementById('manual-add-note').value = '';
+  document.getElementById('manual-add-modal').classList.add('open');
+}
+function cancelManualAdd(){
+  document.getElementById('manual-add-modal').classList.remove('open');
+}
+function confirmManualAdd(){
+  const title = document.getElementById('manual-add-title').value.trim();
+  const creator = document.getElementById('manual-add-creator').value.trim();
+  const year = document.getElementById('manual-add-year').value.trim();
+  const note = document.getElementById('manual-add-note').value.trim();
+  if(!title){ showToast('タイトルを入力してください'); return; }
+  const categoryId = getCurrentCategoryId();
+  const positionIndex = ITEMS.filter(i=>i.categoryId===categoryId).length;
+  const item = {
+    id: nextId++,
+    title,
+    subtitle: creator || '',
+    author: creator || '',
+    description: note || '',
+    imageUrl: '',
+    coverUrl: '',
+    categoryId,
+    shelf: categoryId,
+    tags: [],
+    status: 'tsundoku',
+    rating: 0,
+    metadata: {year: parseInt(year) || 0, publisher:'', pages:0},
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    position: {row:0,order:positionIndex},
+    row:0,
+    color: randomColor(),
+    memo: '',
+  };
+  ITEMS.push(item);
+  saveItems();
+  document.getElementById('manual-add-modal').classList.remove('open');
+  showToast(`✅ 「${item.title}」を追加しました`);
+  renderShelf();
+}
+
+// Android側（MainActivity.java）から呼ばれるコールバック
+// window.onBarcodeScanned(isbn) の形でグローバルに公開
+window.onBarcodeScanned = async function(isbn){
+  if(!isbn){ showToast('バーコードを読み取れませんでした'); return; }
+
+  const prog = document.getElementById('barcode-progress');
+  const isbnDisplay = document.getElementById('barcode-isbn-display');
+  isbnDisplay.textContent = 'ISBN: ' + isbn;
+  prog.classList.add('show');
+
+  if(window.Android && typeof window.Android.vibrate === 'function') window.Android.vibrate();
+
+  try{
+    const book = await lookupByISBN(isbn);
+    prog.classList.remove('show');
+
+    if(!book){
+      showToast('❌ この情報が見つかりませんでした');
+      return;
+    }
+
+    // 既に登録済みかチェック
+    if(book.isbn && addedISBNs.has(book.isbn)){
+      showToast(`「${book.title}」はすでに登録済みです`);
+      return;
+    }
+
+    const categoryId = getCurrentCategoryId();
+    const newBook = {
+      id: nextId++,
+      title: book.title,
+      subtitle: book.author||'',
+      author: book.author||'',
+      publisher: book.publisher||'',
+      year: parseInt(book.year)||0,
+      pages: book.pages||0,
+      isbn: book.isbn||isbn,
+      genre: book.genre||'',
+      color: randomColor(),
+      coverUrl: book.coverUrl||'',
+      imageUrl: book.coverUrl||'',
+      description: book.description||'',
+      status: 'tsundoku',
+      rating: 0,
+      categoryId,
+      shelf: categoryId,
+      tags: [],
+      metadata: {year: parseInt(book.year)||0, publisher: book.publisher||'', pages: book.pages||0},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      position: {row:0,order:ITEMS.filter(i=>i.categoryId===categoryId).length},
+      row: 0,
+      memo: '',
+    };
+    ITEMS.push(newBook);
+    if(newBook.isbn) addedISBNs.add(newBook.isbn);
+    saveItems();
+
+    showToast(`✅「${book.title}」をコレクションに追加しました`);
+    switchScreen('shelf');
+  } catch(e){
+    prog.classList.remove('show');
+    showToast('⚠️ 情報の取得に失敗しました');
+  }
+};
+
+// Android側カメラ権限が許可された後の通知（任意フック）
+window.onAndroidReady = function(){
+  // 必要であればここでAndroid特有の初期化を行う
+};
+
+
+
+// ════════════════════════════════════════════════════
+//  SEARCH / MYSHELF
+// ════════════════════════════════════════════════════
+function setSearchTab(tab){
+  ['myshelf','api'].forEach(function(t){
+    var tabEl=document.getElementById('tab-'+t);
+    if(tabEl) tabEl.classList.toggle('active',t===tab);
+    var tabContentEl=document.getElementById('tab-content-'+t);
+    if(tabContentEl) tabContentEl.classList.toggle('active',t===tab);
+  });
+}
+function doMyShelfSearch(q){
+  const filtered=q?ITEMS.filter(item=>{
+    const searchBase = [item.title,item.subtitle,item.author,item.description,item.genre,(item.tags||[]).join(' ')].join(' ').toLowerCase();
+    return searchBase.includes(q.toLowerCase());
+  }):ITEMS;
+  document.getElementById('myshelf-label').textContent=q?`「${q}」(${filtered.length}件)`:`すべてのアイテム (${ITEMS.length}件)`;
+  const stl={tsundoku:'積読',reading:'読書中',done:'読了'};
+  document.getElementById('myshelf-results').innerHTML=filtered.length===0
+    ?'<div class="api-empty">見つかりませんでした</div>'
+    :filtered.map(item=>`<div class="book-list-item" onclick="openBook(${item.id})">
+      <div style="width:${getSpineWidth(item.pages||((item.metadata && item.metadata.pages)||0)||0)*.6}px;min-height:48px;background:${item.color};border-radius:1px 2px 2px 1px;flex-shrink:0"></div>
+      <div class="book-list-info">
+        <div class="book-list-title">${item.title}</div>
+        <div class="book-list-author">${item.author||item.subtitle||''}</div>
+        <div class="book-list-chips"><div class="mini-chip">${getCategoryName(item.categoryId)}</div><div class="mini-chip">${item.genre||'不明'}</div><div class="mini-chip">${stl[item.status]||''}</div></div>
+      </div><div style="font-size:18px;align-self:center;color:var(--ink-soft)">›</div>
+    </div>`).join('');
+}
+
+// ── API SEARCH ───────────────────────────────────────
+const activeSources=new Set(['google','ndl','openbd','openlibrary']);
+function toggleApiSource(src,el){
+  if(activeSources.has(src)){if(activeSources.size>1){activeSources.delete(src);el.classList.remove('active')}else showToast('最低1つ選択してください')}
+  else{activeSources.add(src);el.classList.add('active'); }
+}
+// ─── Google Books API（直接アクセス）──────────────────────
+async function fetchGoogleBooks(q){
+  const url=`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=ja&maxResults=8&orderBy=relevance`;
+  const res=await fetch(url);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data=await res.json();
+  return (data.items||[]).map(item=>{
+    const info=item.volumeInfo||{};
+    var isbn = '';
+    var ids = info.industryIdentifiers || [];
+    var found = ids.find(function(x){return x.type==='ISBN_13'});
+    if(found && found.identifier) isbn = found.identifier;
+    else { found = ids.find(function(x){return x.type==='ISBN_10'}); if(found && found.identifier) isbn = found.identifier; }
+    var coverUrl = '';
+    if(info.imageLinks){ coverUrl = info.imageLinks.thumbnail || info.imageLinks.smallThumbnail || ''; }
+    if(coverUrl) coverUrl=coverUrl.replace('http://','https://');
+    return{
+      title:info.title||'不明',author:(info.authors||[]).join(', '),
+      publisher:info.publisher||'',year:(info.publishedDate||'').slice(0,4),
+      pages:info.pageCount||0,isbn,coverUrl,description:info.description||'',
+      genre:(info.categories||[]).join(', '),source:'google',
+    };
+  }).filter(b=>b.title&&b.title!=='不明');
+}
+
+async function fetchOpenLibrary(q){
+  const url=`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=8&language=jpn`;
+  const res=await fetch(url);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data=await res.json();
+  return (data.docs||[]).map(doc=>{
+    const isbn=(doc.isbn||[]).find(value=>/^97[89]\d{10}$/.test(value)) || (doc.isbn||[])[0] || '';
+    const coverUrl=doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '';
+    return {
+      title:doc.title||'不明',author:(doc.author_name||[]).join(', '),
+      publisher:(doc.publisher||[])[0]||'',year:doc.first_publish_year||'',
+      pages:doc.number_of_pages_median||0,isbn,coverUrl,
+      description:'',genre:'',source:'openlibrary'
+    };
+  }).filter(book=>book.title&&book.title!=='不明');
+}
+
+// ─── 国立国会図書館 API (OpenSearch / XML) ────────────────
+async function fetchNDL(q){
+  const url=`https://ndlsearch.ndl.go.jp/api/opensearch?any=${encodeURIComponent(q)}&cnt=8`;
+  const res=await fetch(url);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const text=await res.text();
+  const xml=new DOMParser().parseFromString(text,'text/xml');
+  const items=xml.querySelectorAll('item');
+  return Array.from(items).map(item=>{
+    const get=function(tag){var el=item.querySelector(tag); return el && el.textContent ? el.textContent : ''; };
+    const title=get('title');
+    const author=get('author')||get('creator');
+    const publisher=get('publisher');
+    const date=get('date');
+    let isbn='';
+    Array.from(item.querySelectorAll('identifier')).forEach(function(el){var v=el.textContent||''; if(/^(97[89][-0-9]{9,16}|[0-9][-0-9]{8,11})$/.test(v)) isbn=v.replace(/[^0-9]/g,'');});
+    return{
+      title,author,publisher,year:date.slice(0,4),pages:0,isbn,
+      coverUrl:isbn?`https://ndlsearch.ndl.go.jp/thumbnail/${isbn}.jpg`:'',
+      description:'',genre:'',source:'ndl',
+    };
+  }).filter(b=>b.title);
+}
+
+// ─── OpenBD API（ISBN照合・タイトル検索はGoogleでISBN収集後に照会）──
+async function fetchOpenBD(q){
+  const isIsbn=/^[0-9]{10,13}$/.test(q.replace(/-/g,''));
+  if(isIsbn) return await fetchOpenBDByISBN([q.replace(/-/g,'')]);
+  try{
+    const gRes=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=ja&maxResults=6`);
+    const gData=await gRes.json();
+    const isbns=(gData.items||[]).flatMap(function(item){
+      var ids=[];
+      if(item.volumeInfo && item.volumeInfo.industryIdentifiers) ids = item.volumeInfo.industryIdentifiers;
+      return ids.filter(function(x){return x.type==='ISBN_13'}).map(function(x){return x.identifier});
+    }).filter(Boolean).slice(0,5);
+    if(!isbns.length) return [];
+    return await fetchOpenBDByISBN(isbns);
+  }catch{return []}
+}
+async function fetchOpenBDByISBN(isbns){
+  const url=`https://api.openbd.jp/v1/get?isbn=${isbns.join(',')}`;
+  const res=await fetch(url);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data=await res.json();
+  return data.filter(Boolean).map(item=>{
+    const summary=item.summary||{};
+    const onix=item.onix||{};
+    var desc = '';
+    if(onix.CollateralDetail && onix.CollateralDetail.TextContent && onix.CollateralDetail.TextContent[0] && onix.CollateralDetail.TextContent[0].Text){
+      desc = onix.CollateralDetail.TextContent[0].Text;
+    }
+    var pages = 0;
+    if(onix.DescriptiveDetail && onix.DescriptiveDetail.Extent && onix.DescriptiveDetail.Extent[0] && onix.DescriptiveDetail.Extent[0].ExtentValue){
+      pages = parseInt(onix.DescriptiveDetail.Extent[0].ExtentValue||'0')||0;
+    }
+    return{
+      title:summary.title||'不明',author:summary.author||'',publisher:summary.publisher||'',
+      year:(summary.pubdate||'').slice(0,4),pages,isbn:summary.isbn||'',
+      coverUrl:summary.cover||'',description:desc,genre:'',source:'openbd',
+    };
+  }).filter(b=>b.title&&b.title!=='不明');
+}
+
+
+
+// 楽天ブックス総合検索API（認証情報はサーバー側で管理）
+async function fetchRakutenBooks(q){
+  const res=await fetch(`/api/rakuten/books?q=${encodeURIComponent(q)}`);
+  const data=await res.json();
+  if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
+  return (data.Items||data.items||[]).map(row=>{const item=row.Item||row;return {title:item.title||'',author:item.author||'',publisher:item.publisherName||'',year:(item.salesDate||'').slice(0,4),pages:0,isbn:item.isbn||'',coverUrl:item.largeImageUrl||item.mediumImageUrl||item.smallImageUrl||'',description:item.itemCaption||'',genre:'',source:'rakuten'};}).filter(book=>book.title);
+}
+// ISBNバーコードからの直接照会（スキャン機能から呼ばれる）
+async function lookupByISBN(isbn){
+  try{
+    const r=await fetchOpenBDByISBN([isbn]);
+    if(r.length) return r[0];
+  }catch(e){}
+  try{
+    const r=await fetchGoogleBooks(isbn);
+    if(r.length) return r[0];
+  }catch(e){}
+  return null;
+}
+
+async function doApiSearch(){
+  const q=document.getElementById('api-search-input').value.trim();
+  if(!q){showToast('キーワードを入力してください');return}
+  const body=document.getElementById('api-results-body');
+  body.innerHTML='<div class="api-loading"><div class="spinner"></div>検索中...</div>';
+  let all=[],errs=[];
+  const f=[];
+  if(activeSources.has('google')) f.push(fetchGoogleBooks(q).then(r=>all.push(...r)).catch(e=>errs.push('Google: '+e.message)));
+  if(activeSources.has('ndl'))    f.push(fetchNDL(q).then(r=>all.push(...r)).catch(e=>errs.push('NDL: '+e.message)));
+  if(activeSources.has('openbd')) f.push(fetchOpenBD(q).then(r=>all.push(...r)).catch(e=>errs.push('OpenBD: '+e.message)));
+  if(activeSources.has('openlibrary')) f.push(fetchOpenLibrary(q).then(r=>all.push(...r)).catch(e=>errs.push('Open Library: '+e.message)));
+  if(activeSources.has('rakuten')) f.push(fetchRakutenBooks(q).then(r=>all.push(...r)).catch(e=>errs.push('楽天ブックス: '+e.message)));
+  // 楽天検索は削除済み（作り直し待ち）
+  await Promise.allSettled(f);
+  const seen=new Set();all=all.filter(r=>{const k=r.isbn||(r.title+r.author);if(seen.has(k))return false;seen.add(k);return true});
+  renderApiResults(all,errs,q);
+}
+const addedISBNs=new Set(ITEMS.filter(b=>b.isbn).map(b=>b.isbn));
+const srcBadge={google:'<span class="api-badge source-google">Google</span>',ndl:'<span class="api-badge source-ndl">国会図書館</span>',openbd:'<span class="api-badge source-openbd">OpenBD</span>',openlibrary:'<span class="api-badge">Open Library</span>',rakuten:'<span class="api-badge">楽天ブックス</span>'};
+function renderApiResults(results,errors,q){
+  const body=document.getElementById('api-results-body');
+  let h='';
+  if(errors.length) h+=`<div class="api-error">⚠️ ${errors.join('<br>')}</div>`;
+  if(!results.length){h+=`<div class="api-empty">「${q}」の結果が見つかりませんでした</div>`;body.innerHTML=h;return}
+  h+=`<div class="search-section-title">${results.length}件ヒット</div>`;
+  h+=results.map((book,idx)=>{
+    const added=book.isbn&&addedISBNs.has(book.isbn);
+    const cov=book.coverUrl?`<div class="api-cover"><img src="${book.coverUrl}" alt="${book.title}" onerror="this.parentElement.textContent='📖'"></div>`:`<div class="api-cover">📖</div>`;
+    return `<div class="api-result-item">${cov}<div class="api-info"><div class="api-title">${book.title}</div><div class="api-author">${book.author||'著者不明'}${book.publisher?' / '+book.publisher:''}</div><div class="api-meta">${book.year?`<span class="api-badge">${book.year}年</span>`:''}${book.pages?`<span class="api-badge">${book.pages}p</span>`:''}${srcBadge[book.source]||''}</div></div><button class="add-btn ${added?'added':''}" id="addbtn-${idx}" onclick="addBookFromApi(${idx},'${encodeURIComponent(JSON.stringify(book))}',this)">${added?'✓':'+'}</button></div>`;
+  }).join('');
+  body.innerHTML=h;
+}
+async function addBookFromApi(idx,enc,btn){
+  if(btn.classList.contains('added')){showToast('すでに登録済みです');return}
+  if(getCurrentUserId()==='guest'){
+    showToast('ネットから本を登録するにはログインしてください');
+    switchScreen('login');
+    return;
+  }
+  const book=JSON.parse(decodeURIComponent(enc));
+  const categoryId = getCurrentCategoryId();
+  const newBook={
+    id:nextId++,
+    title:book.title,
+    subtitle:book.author||'',
+    author:book.author||'',
+    publisher:book.publisher||'',
+    year:parseInt(book.year)||0,
+    pages:book.pages||0,
+    isbn:book.isbn||'',
+    genre:book.genre||'',
+    color:randomColor(),
+    coverUrl:book.coverUrl||'',
+    imageUrl:book.coverUrl||'',
+    description:book.description||'',
+    status:'tsundoku',
+    rating:0,
+    categoryId,
+    shelf:categoryId,
+    tags:[],
+    metadata:{year:parseInt(book.year)||0,publisher:book.publisher||'',pages:book.pages||0},
+    createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString(),
+    position:{row:0,order:ITEMS.filter(i=>i.categoryId===categoryId).length},
+    row:0,
+    memo:'',
+  };
+  ITEMS.push(newBook);if(book.isbn)addedISBNs.add(book.isbn);saveItems();
+  const synced=await syncMediaItem(newBook);
+  btn.classList.add('added');btn.textContent='✓';
+  renderShelf();
+  showToast(synced ? `✅「${book.title}」を登録しました` : `✅「${book.title}」を登録しました（クラウド保存失敗）`);
+}
+
+// ════════════════════════════════════════════════════
+//  BOOKLIST
+// ════════════════════════════════════════════════════
+let currentBooklistFilter='all';
+const STATUS_DOT={tsundoku:'#E8A840',reading:'#2B8BF0',done:'#3A7D44'};
+function setBooklistFilter(f){
+  currentBooklistFilter=f;
+  ['all','tsundoku','reading','done'].forEach(function(ff){var el=document.getElementById('blfc-'+ff); if(el) el.classList.toggle('active',ff===f);});
+  renderBooklist(f);
+}
+function renderBooklist(filter){
+  const grid=document.getElementById('booklist-grid');if(!grid)return;
+  const books=filter==='all'?ITEMS:ITEMS.filter(b=>b.status===filter);
+  if(!books.length){grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:48px 18px;color:var(--ink-soft)"><div style="font-size:44px;margin-bottom:10px">📚</div><div style="font-size:13px">該当するアイテムがありません</div></div>`;return}
+  grid.innerHTML=books.map(book=>{
+    const dot=STATUS_DOT[book.status]||'transparent';
+    const cov=book.coverUrl
+      ?`<img src="${book.coverUrl}" alt="${book.title}" onerror="this.parentElement.innerHTML='<div class=booklist-cover-fallback style=background:linear-gradient(135deg,${lightenColor(book.color,20)},${book.color},${darkenColor(book.color,20)});width:100%;height:100%><div class=booklist-cover-title>${book.title}</div></div>'">`
+      :`<div class="booklist-cover-fallback" style="background:linear-gradient(135deg,${lightenColor(book.color,20)},${book.color},${darkenColor(book.color,20)})"><div class="booklist-cover-title">${book.title}</div></div>`;
+    return `<div class="booklist-card" onclick="openBook(${book.id})"><div class="booklist-cover">${cov}<div class="booklist-status-dot" style="background:${dot};box-shadow:0 0 4px ${dot}"></div></div><div class="booklist-card-title">${book.title}</div><div class="booklist-card-author">${book.author||''}</div></div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════
+//  SHARE
+// ════════════════════════════════════════════════════
+const shareState = safeParse(localStorage.getItem('ps_share_state') || 'null', null) || {
+  tab:'discover', nickname:'', publicShelf:false, allowDm:true, reactions:{}, messages:[]
+};
+function saveShareState(){localStorage.setItem('ps_share_state',JSON.stringify(shareState));}
+function escapeShareHtml(value){return String(value || '').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));}
+function shareBookMark(book){return `<div class="share-book-mark" style="background:linear-gradient(135deg,${lightenColor(book.color || '#4F8CFF',20)},${book.color || '#4F8CFF'},${darkenColor(book.color || '#4F8CFF',20)})"></div>`;}
+function setShareTab(tab){
+  shareState.tab=tab; saveShareState();
+  document.querySelectorAll('[data-share-tab]').forEach(el=>el.classList.toggle('active',el.dataset.shareTab===tab));
+  document.querySelectorAll('.share-panel').forEach(el=>el.classList.toggle('active',el.id==='share-'+tab));
+}
+function renderShare(){
+  const discover=document.getElementById('share-discover');
+  const people=document.getElementById('share-people');
+  const privacy=document.getElementById('share-privacy');
+  if(!discover || !people || !privacy) return;
+  const library=ITEMS.slice(0,4);
+  const seed=library[0] || {title:'あなたのコレクション',color:'#4F8CFF',tags:[]};
+  const suggestions=library.length>1 ? library.slice(1) : [{title:'気になる作品を登録するとおすすめが育ちます',color:'#5F8B3A',author:''}];
+  const tagCounts={}; ITEMS.forEach(book=>(book.tags || []).forEach(tag=>tagCounts[tag]=(tagCounts[tag] || 0)+1));
+  const favouriteTag=Object.keys(tagCounts).sort((a,b)=>tagCounts[b]-tagCounts[a])[0] || '読書傾向';
+  discover.innerHTML=`
+    <div class="share-heading">作品ベース集計</div>
+    <div class="share-card">
+      <div class="share-card-title">「${escapeShareHtml(seed.title)}」を見た人は、こちらも見ています</div>
+      <div class="share-note">公開された閲覧傾向を匿名で集計したおすすめです。</div>
+      ${suggestions.map((book,index)=>`<div class="share-recommendation">${shareBookMark(book)}<div class="share-rec-main"><div class="share-rec-title">${escapeShareHtml(book.title)}</div><div class="share-rec-sub">${index===0?'同じ作品を好きな人の': '作品の特徴が近い'}おすすめ</div></div><span class="share-chip">おすすめ</span></div>`).join('')}
+    </div>
+    <div class="share-heading">ユーザーベース集計</div>
+    <div class="share-card">
+      <div class="share-card-title">あなたの「${escapeShareHtml(favouriteTag)}」傾向から選びました</div>
+      <div class="share-note">タグ・登録した作品・読書状況をもとに、好みの近いユーザーの棚から提案します。</div>
+      <div class="share-recommendation">${shareBookMark({color:'#8B4A8B'})}<div class="share-rec-main"><div class="share-rec-title">次に読む作品を探す</div><div class="share-rec-sub">好みが近い ${FAKE_USERS.length} 人の公開棚を参照</div></div><button class="share-action" onclick="setShareTab('people')">棚を見る</button></div>
+    </div>
+    <div class="share-card"><div class="share-card-title">🎬 マルチメディア対応</div><div class="share-note">本だけでなく映画・アニメも、同じ棚に並べて管理できる機能を準備中です。</div></div>`;
+  people.innerHTML=`
+    <div class="share-heading">サイレント閲覧</div>
+    <div class="share-card"><div class="share-card-title">コメントなしで、ほかの人の棚を眺める</div><div class="share-note">閲覧だけでは相手に通知されません。気になった棚にだけリアクションやDMを送れます。</div>
+      ${FAKE_USERS.map((user,index)=>renderShareUser(user,index)).join('')}
+    </div>`;
+  privacy.innerHTML=`
+    <div class="share-heading">あなたの棚</div>
+    <div class="share-card">
+      <div class="share-setting" style="display:block"><div class="share-setting-title">他人に見せるニックネーム</div><div class="share-setting-desc">メールアドレスの代わりに表示される名前です。</div><div style="display:flex;gap:8px;margin-top:9px"><input id="share-nickname" maxlength="30" value="${escapeShareHtml(shareState.nickname)}" placeholder="ニックネームを入力" style="flex:1;min-width:0;border:1px solid rgba(0,0,0,.13);border-radius:8px;padding:9px;font-size:13px;color:var(--ink);outline:none"><button class="share-action" onclick="saveShareNickname()">保存</button></div></div>
+      <div class="share-setting"><div><div class="share-setting-title">棚を公開する</div><div class="share-setting-desc">公開すると、ほかのユーザーが静かに棚を閲覧できます。</div></div><button class="share-toggle${shareState.publicShelf?' on':''}" aria-label="棚を公開する" onclick="toggleShareSetting('publicShelf')"></button></div>
+      <div class="share-setting"><div><div class="share-setting-title">DMを受け取る</div><div class="share-setting-desc">相互にリアクションした相手からのメッセージを受信できます。</div></div><button class="share-toggle${shareState.allowDm?' on':''}" aria-label="DMを受け取る" onclick="toggleShareSetting('allowDm')"></button></div>
+    </div>
+    <div class="share-card"><div class="share-card-title">🎨 自由なカスタマイズ本棚</div><div class="share-note">テーマ・並び順・レイアウトはあなたのまま共有できます。公開せずに使うプライベート棚にも対応しています。</div></div>`;
+  setShareTab(shareState.tab || 'discover');
+}
+function saveShareNickname(){
+  const input=document.getElementById('share-nickname');
+  const nickname=input ? input.value.trim() : '';
+  if(!nickname){showToast('ニックネームを入力してください');return}
+  shareState.nickname=nickname;
+  saveShareState();
+  renderShare();
+  setShareTab('privacy');
+  showToast('✅ ニックネームを保存しました');
+}
+function renderShareUser(user,index){
+  const key='user-'+index;
+  const reaction=shareState.reactions[key] || '';
+  const shelf=user.shelves.map((book,i)=>`<div class="share-shelf-book" style="height:${28+(i%3)*10}px;background:${book.color}"></div>`).join('');
+  return `<div class="share-user"><div class="share-avatar">${user.icon}</div><div class="share-user-info"><div class="share-user-name">${escapeShareHtml(user.name)}</div><div class="share-user-meta">${user.count}冊 · あなたと好みが近い</div></div><button class="share-action" onclick="toggleShareProfile(${index})">棚を見る</button></div>
+    <div id="share-profile-${index}" style="display:none"><div class="share-shelf-preview">${shelf}</div><div class="share-reactions"><button class="share-reaction${reaction==='like'?' active':''}" onclick="setShareReaction('${key}','like')">♡ いいね</button><button class="share-reaction${reaction==='want'?' active':''}" onclick="setShareReaction('${key}','want')">📚 読みたい</button></div>${shareState.allowDm && reaction?`<div class="share-dm"><input id="share-dm-${index}" maxlength="100" placeholder="メッセージを送る"><button onclick="sendShareMessage(${index})">送信</button></div>`:`<div class="share-note" style="margin-top:9px">リアクションすると、このユーザーとDMできます。</div>`}</div>`;
+}
+function toggleShareProfile(index){const el=document.getElementById('share-profile-'+index);if(el)el.style.display=el.style.display==='block'?'none':'block';}
+function setShareReaction(key,reaction){shareState.reactions[key]=shareState.reactions[key]===reaction?'':reaction;saveShareState();renderShare();setShareTab('people');const el=document.getElementById('share-profile-'+key.split('-')[1]);if(el)el.style.display='block';}
+function sendShareMessage(index){const input=document.getElementById('share-dm-'+index);const body=input && input.value.trim();if(!body)return;shareState.messages.push({to:FAKE_USERS[index].name,body,createdAt:new Date().toISOString()});saveShareState();input.value='';showToast('メッセージを送信しました');}
+function toggleShareSetting(key){shareState[key]=!shareState[key];saveShareState();renderShare();setShareTab('privacy');showToast(shareState[key]?'設定をオンにしました':'設定をオフにしました');}
+
+// ════════════════════════════════════════════════════
+//  COMMUNITY
+// ════════════════════════════════════════════════════
+const FAKE_USERS=[
+  {name:'本好きさゆり',icon:'👩',count:42,shelves:[{color:'#8B3A3A',pages:480},{color:'#3A5F8B',pages:320},{color:'#5F8B3A',pages:200},{color:'#8B7A3A',pages:560},{color:'#7A3A8B',pages:150}]},
+  {name:'読書狂タロウ',icon:'👨',count:118,shelves:[{color:'#C44B2B',pages:700},{color:'#1A4A8B',pages:400},{color:'#3A7D44',pages:300},{color:'#8B4A8B',pages:620},{color:'#2A2A2A',pages:180}]},
+  {name:'積読の女王',icon:'👸',count:67,shelves:[{color:'#6B4226',pages:250},{color:'#1A6B5A',pages:380},{color:'#8B6A1A',pages:480},{color:'#4A1A8B',pages:130},{color:'#8B1A3A',pages:350}]},
+];
+function renderCommunity(){
+  const list=document.getElementById('community-list');if(!list)return;
+  list.innerHTML=FAKE_USERS.map(u=>{
+    const mini=u.shelves.map(b=>`<div style="width:${Math.max(7,Math.round(b.pages/40))}px;height:50px;border-radius:1px 2px 2px 1px;background:${b.color};flex-shrink:0"></div>`).join('');
+    return `<div style="background:#fff;border-radius:13px;overflow:hidden;border:1px solid rgba(0,0,0,.07);cursor:pointer;margin-bottom:10px" onclick="showToast('🚧 ${u.name}さんの本棚（近日公開）')"><div style="background:var(--shelf-bg);padding:10px 11px 0"><div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><div style="font-size:20px">${u.icon}</div><div><div style="font-size:13px;font-weight:700;color:#fff">${u.name}</div><div style="font-size:11px;color:rgba(255,255,255,.4)">${u.count}冊</div></div></div><div style="display:flex;align-items:flex-end;gap:2px;background:#1a0f06;padding:5px 5px 0;border-radius:2px 2px 0 0;min-height:60px">${mini}</div><div style="height:7px;background:linear-gradient(to bottom,#C49A6C,#8B6540)"></div></div><div style="padding:9px 11px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:12px;color:var(--ink-soft)">本棚を見る</div><div style="font-size:15px;color:var(--ink-soft)">›</div></div></div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════
+//  SETTINGS / SHELF CUSTOMISE
+// ════════════════════════════════════════════════════
+const MATERIALS=[
+  {name:'ウォルナット',side:'#3E2010',bg:'#1a0c04',pt:'#8B5E3C',pm:'#7A5230',pb:'#5C3A1E',grain:16},
+  {name:'オーク',     side:'#6B4A2A',bg:'#231508',pt:'#C49A6C',pm:'#B08050',pb:'#8B6540',grain:20},
+  {name:'パイン',     side:'#8B6A30',bg:'#2A1C08',pt:'#D4B06A',pm:'#C09848',pb:'#A07830',grain:14},
+  {name:'ホワイト',   side:'#B0A898',bg:'#3A3530',pt:'#E8E0D0',pm:'#D0C8B8',pb:'#B8B0A0',grain:22},
+  {name:'ブラック',   side:'#1A1A1A',bg:'#0A0A0A',pt:'#404040',pm:'#303030',pb:'#202020',grain:12},
+  {name:'アイアン',   side:'#3A3A3A',bg:'#1A1A1A',pt:'#606060',pm:'#505050',pb:'#404040',grain:8},
+  {name:'チェリー',   side:'#4A1A1A',bg:'#1A0808',pt:'#A04040',pm:'#803030',pb:'#602020',grain:18},
+  {name:'バンブー',   side:'#6A7A3A',bg:'#1E2410',pt:'#A0B060',pm:'#909848',pb:'#707830',grain:10},
+];
+const PLANK_COLORS=['#D4A264','#C08040','#A06030','#E8C890','#808080','#5A4A3A','#C08080','#80A060'];
+const BG_COLORS=PLANK_COLORS;
+
+function getDefaultShelfConfig(){
+  return {
+    material:0, plankColor:'#D4A264', bgColor:'#1a0f06',
+    plankH:14, rowMinH:130, grainSize:18,
+    bcSide:'#5C3D1E',
+  };
+}
+function getUserShelfConfig(){
+  const scopedKey=getScopedStorageKey('ps_shelf_config');
+  const scoped=localStorage.getItem(scopedKey);
+  if(scoped) return {...getDefaultShelfConfig(),...safeParse(scoped,{})};
+  if(getCurrentUserId()==='guest'){
+    const legacy=localStorage.getItem('ps_shelf_config');
+    if(legacy){
+      const config={...getDefaultShelfConfig(),...safeParse(legacy,{})};
+      localStorage.setItem(scopedKey,JSON.stringify(config));
+      return config;
+    }
+  }
+  const config=getDefaultShelfConfig();
+  localStorage.setItem(scopedKey,JSON.stringify(config));
+  return config;
+}
+let shelfConfig = getUserShelfConfig();
+function saveShelfConfig(){localStorage.setItem(getScopedStorageKey('ps_shelf_config'),JSON.stringify(shelfConfig))}
+
+function applyShelfConfig(){
+  const r=document.documentElement.style;
+  r.setProperty('--bc-side',shelfConfig.bcSide||'#5C3D1E');
+  r.setProperty('--bc-bg',shelfConfig.bgColor||'#1a0f06');
+  const [pt,pm,pb]=hexToPlankGradient(shelfConfig.plankColor||'#D4A264');
+  r.setProperty('--plank-top',pt);r.setProperty('--plank-mid',pm);r.setProperty('--plank-bot',pb);
+  r.setProperty('--plank-h',shelfConfig.plankH+'px');
+  r.setProperty('--row-min-h',shelfConfig.rowMinH+'px');
+  r.setProperty('--grain-size',shelfConfig.grainSize+'px');
+}
+function hexToPlankGradient(hex){
+  if(!/^#[0-9a-fA-F]{6}$/.test(hex)) hex='#D4A264';
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  const l=(v,a)=>`rgb(${Math.min(255,v[0]+a)},${Math.min(255,v[1]+a)},${Math.min(255,v[2]+a)})`;
+  return[l([r,g,b],30),hex,l([r,g,b],-20)];
+}
+function hexToRGB(hex){ if(!/^#[0-9a-fA-F]{6}$/.test(hex)) hex='#D4A264'; return{r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)}}
+function rgbToHex(r,g,b){return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('')}
+
+function renderColorGrid(containerId, colors, selected, opts){
+  const el=document.getElementById(containerId);
+  if(!el) return null;
+  const cls=(opts&&opts.cls)||'color-dot';
+  const fn=(opts&&opts.fn)||'setPlankColor';
+  const list=[...new Set([selected,...(colors||[])])].filter(Boolean);
+  el.innerHTML=list.map(c=>`<div class="${cls}" data-color="${c}" style="background:${c}" onclick="${fn}('${c}',this)"></div>`).join('');
+  el.querySelectorAll('.'+cls).forEach(d=>{d.classList.remove('active');d.removeAttribute('data-selected');});
+  const active=el.querySelector(`[data-color="${selected}"]`);
+  if(active){active.classList.add('active');active.dataset.selected='true';}
+  return el;
+}
+function setMaterial(idx,el){
+  const m=MATERIALS[idx];
+  shelfConfig.material=idx;shelfConfig.bcSide=m.side;shelfConfig.bgColor=m.bg;
+  shelfConfig.plankColor=m.pt;shelfConfig.grainSize=m.grain;
+  saveShelfConfig();applyShelfConfig();updatePreview();
+  document.querySelectorAll('.material-chip').forEach(function(c,i){c.classList.toggle('active',i===idx);});
+  showToast('🪵 '+m.name+'に変更しました');
+}
+function setPlankColor(hex,el){
+  shelfConfig.plankColor=hex;saveShelfConfig();applyShelfConfig();updatePreview();
+  renderColorGrid('plank-color-grid', PLANK_COLORS, hex, {cls:'color-dot', fn:'setPlankColor'});
+}
+function setBgColor(hex,el){
+  shelfConfig.bgColor=hex;saveShelfConfig();applyShelfConfig();updatePreview();
+  renderColorGrid('bg-color-grid', BG_COLORS, hex, {cls:'bg-swatch', fn:'setBgColor'});
+}
+function setPlankThickness(v){
+  shelfConfig.plankH=parseInt(v);saveShelfConfig();applyShelfConfig();updatePreview();
+  document.getElementById('plank-thickness-val').textContent=v;
+  const sl=document.getElementById('plank-thickness');
+  sl.style.setProperty('--val',((v-6)/(24-6)*100)+'%');
+}
+function setRowHeight(v){
+  shelfConfig.rowMinH=parseInt(v);saveShelfConfig();applyShelfConfig();
+  document.getElementById('row-height-val').textContent=v;
+  const sl=document.getElementById('row-height');
+  sl.style.setProperty('--val',((v-100)/(200-100)*100)+'%');
+}
+function updatePreview(){
+  const pr=document.getElementById('preview-row');
+  const pp=document.getElementById('preview-plank');
+  if(pr) pr.style.background=shelfConfig.bgColor;
+  if(pp){const[pt,pm,pb]=hexToPlankGradient(shelfConfig.plankColor);pp.style.background=`linear-gradient(to bottom,${pt},${pm},${pb})`}
+  const prev=document.getElementById('shelf-preview');
+  if(prev) prev.style.background=shelfConfig.bcSide;
+}
+
+// ── RGB picker ────────────────────────────────────────
+function onRGBChange(target){
+  const r=parseInt(document.getElementById(target+'-r').value);
+  const g=parseInt(document.getElementById(target+'-g').value);
+  const b=parseInt(document.getElementById(target+'-b').value);
+  document.getElementById(target+'-r-val').textContent=r;
+  document.getElementById(target+'-g-val').textContent=g;
+  document.getElementById(target+'-b-val').textContent=b;
+  const hex=rgbToHex(r,g,b);
+  const result=document.getElementById(target+'-rgb-result');
+  if(result) result.style.background=hex;
+
+  if(target==='plank'){
+    const pp=document.getElementById('preview-plank');
+    if(pp){
+      const [pt,pm,pb]=hexToPlankGradient(hex);
+      pp.style.background=`linear-gradient(to bottom,${pt},${pm},${pb})`;
+    }
+  }else{
+    const pr=document.getElementById('preview-row');
+    if(pr) pr.style.background=hex;
+  }
+
+  // update slider track
+  ['r','g','b'].forEach(ch=>{
+    const sl=document.getElementById(target+'-'+ch);
+    const v=parseInt(sl.value)/255*100;
+    const colors={r:`rgb(${sl.value},0,0)`,g:`rgb(0,${sl.value},0)`,b:`rgb(0,0,${sl.value})`};
+    sl.style.background=`linear-gradient(to right,${colors[ch]} 0%,${colors[ch]} ${v}%,#ddd ${v}%,#ddd 100%)`;
+  });
+}
+function applyRGBColor(target){
+  const r=parseInt(document.getElementById(target+'-r').value);
+  const g=parseInt(document.getElementById(target+'-g').value);
+  const b=parseInt(document.getElementById(target+'-b').value);
+  const hex=rgbToHex(r,g,b);
+  if(target==='plank') setPlankColor(hex,null);
+  else setBgColor(hex,null);
+  showToast('🎨 色を適用しました');
+}
+function initRGBFromConfig(){
+  // plank
+  const p=hexToRGB(shelfConfig.plankColor||'#D4A264');
+  document.getElementById('plank-r').value=p.r;document.getElementById('plank-g').value=p.g;document.getElementById('plank-b').value=p.b;
+  onRGBChange('plank');
+  // bg
+  const bg=hexToRGB(shelfConfig.bgColor||'#1a0f06');
+  document.getElementById('bg-r').value=bg.r;document.getElementById('bg-g').value=bg.g;document.getElementById('bg-b').value=bg.b;
+  onRGBChange('bg');
+}
+
+function initShelfConfigUI(){
+  // materials
+  const mg=document.getElementById('material-grid');
+  if(mg) mg.innerHTML=MATERIALS.map((m,i)=>`<div class="material-chip${i===shelfConfig.material?' active':''}" onclick="setMaterial(${i},this)"><div class="material-swatch" style="background:${m.pt}"></div><div class="material-name">${m.name}</div></div>`).join('');
+  // plank colors / bg colors（共通ヘルパー renderColorGrid で描画）
+  renderColorGrid('plank-color-grid', PLANK_COLORS, shelfConfig.plankColor, {cls:'color-dot', fn:'setPlankColor'});
+  renderColorGrid('bg-color-grid', BG_COLORS, shelfConfig.bgColor, {cls:'bg-swatch', fn:'setBgColor'});
+  // sliders
+  const pt=document.getElementById('plank-thickness');
+  if(pt){pt.value=shelfConfig.plankH;pt.style.setProperty('--val',((shelfConfig.plankH-6)/18*100)+'%');document.getElementById('plank-thickness-val').textContent=shelfConfig.plankH}
+  const rh=document.getElementById('row-height');
+  if(rh){rh.value=shelfConfig.rowMinH;rh.style.setProperty('--val',((shelfConfig.rowMinH-100)/100*100)+'%');document.getElementById('row-height-val').textContent=shelfConfig.rowMinH}
+  initRGBFromConfig();
+  updatePreview();
+}
+function toggleSetting(el){el.classList.toggle('on');showToast(el.classList.contains('on')?'✅ ON':'⭕ OFF')}
+function clearAllBooks(){if(confirm('コレクションのデータをすべて削除しますか？')){ITEMS=[];saveItems();renderShelf();showToast('🗑️ リセットしました')}}
+
+// ════════════════════════════════════════════════════
+//  DRAG & DROP
+// ════════════════════════════════════════════════════
+let editMode=false;
+const drag={active:false,bookId:null,ghost:null,offsetX:0,offsetY:0,longPressTimer:null,moved:false,lastX:0,lastY:0};
+
+function toggleEditMode(){
+  editMode=!editMode;
+  const bar=document.getElementById('edit-mode-bar'),btn=document.getElementById('edit-mode-btn');
+  bar.classList.toggle('show',editMode);
+  btn.style.background=editMode?'rgba(79,140,255,.3)':'';
+  btn.style.borderColor=editMode?'var(--blue)':'';
+  btn.textContent=editMode?'✅':'✏️';
+  document.querySelectorAll('.shelf-row').forEach(r=>r.classList.toggle('edit-mode',editMode));
+  if(!editMode) showToast('✅ 並び順を保存しました');
+}
+function _clearHighlights(){
+  document.querySelectorAll('.book.drag-over-left,.book.drag-over-right').forEach(b=>{b.classList.remove('drag-over-left','drag-over-right')});
+  document.querySelectorAll('.shelf-row-wrap.drop-target').forEach(u=>u.classList.remove('drop-target'));
+}
+function _removeListeners(){
+  document.removeEventListener('touchmove',onDragMove);document.removeEventListener('touchend',onDragEnd);
+  document.removeEventListener('mousemove',onDragMove);document.removeEventListener('mouseup',onDragEnd);
+}
+function getXY(e){
+  if(e.touches&&e.touches.length)return{x:e.touches[0].clientX,y:e.touches[0].clientY};
+  if(e.changedTouches&&e.changedTouches.length)return{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY};
+  return{x:e.clientX,y:e.clientY};
+}
+function bookClick(e,id){
+  console.log('bookClick ->', id);
+  clearTimeout(drag.longPressTimer);
+  drag.longPressTimer=null;
+  if(drag.moved){drag.moved=false;e.stopPropagation();return}
+  if(editMode) return;
+  openBook(id);
+}
+function bookTouchEnd(e,id){
+  if(editMode){onDragEnd(e);return}
+  clearTimeout(drag.longPressTimer);
+  drag.longPressTimer=null;
+  if(Date.now()-drag.touchStartAt<400){
+    e.preventDefault();
+    openBook(id);
+  }
+}
+function dragStart(e,id){
+  if(drag.active) return;
+  drag.moved=false;clearTimeout(drag.longPressTimer);
+  drag.touchStartAt=Date.now();
+  const{x,y}=getXY(e);drag.lastX=x;drag.lastY=y;
+  if(editMode){e.preventDefault();_beginDrag(id,x,y)}
+  else{drag.longPressTimer=setTimeout(()=>openMoveModal(id),400)}
+}
+function _beginDrag(id,x,y){
+  const el=document.querySelector(`.book[data-id="${id}"]`);if(!el)return;
+  drag.active=true;drag.bookId=id;drag.moved=false;
+  const rect=el.getBoundingClientRect();drag.offsetX=x-rect.left;drag.offsetY=y-rect.top;
+  const ghost=el.cloneNode(true);ghost.id='drag-ghost';
+  ghost.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;z-index:9999;opacity:.85;transform:rotate(5deg) scale(1.1);filter:drop-shadow(0 10px 20px rgba(0,0,0,.6));transition:none`;
+  document.body.appendChild(ghost);drag.ghost=ghost;
+  el.classList.add('dragging');
+  document.addEventListener('touchmove',onDragMove,{passive:false});document.addEventListener('touchend',onDragEnd,{passive:false});
+  document.addEventListener('mousemove',onDragMove);document.addEventListener('mouseup',onDragEnd);
+}
+function onDragMove(e){
+  if(!drag.active)return;e.preventDefault();
+  const{x,y}=getXY(e);drag.lastX=x;drag.lastY=y;drag.moved=true;
+  if(drag.ghost){drag.ghost.style.left=(x-drag.offsetX)+'px';drag.ghost.style.top=(y-drag.offsetY)+'px'}
+  if(drag.ghost)drag.ghost.style.display='none';
+  const below=document.elementFromPoint(x,y);
+  if(drag.ghost)drag.ghost.style.display='';
+  _clearHighlights();if(!below)return;
+  const tb=below.closest('.book');const ts=below.closest('.shelf-row-wrap');
+  if(tb&&tb.dataset.id!=drag.bookId){const r=tb.getBoundingClientRect();tb.classList.add(x<r.left+r.width/2?'drag-over-left':'drag-over-right')}
+  else if(ts) ts.classList.add('drop-target');
+}
+function onDragEnd(e){
+  clearTimeout(drag.longPressTimer);_removeListeners();if(!drag.active)return;
+  const{x,y}=getXY(e);
+  if(drag.ghost){drag.ghost.remove();drag.ghost=null}
+  var draggedBookEl=document.querySelector(`.book[data-id="${drag.bookId}"]`);
+  if(draggedBookEl) draggedBookEl.classList.remove('dragging');
+  _clearHighlights();
+  if(!drag.moved){drag.active=false;drag.bookId=null;return}
+  const below=document.elementFromPoint(x,y);
+  var tb = below ? below.closest('.book') : null;
+  var ts = below ? below.closest('.shelf-row-wrap') : null;
+  const src=ITEMS.find(b=>b.id===drag.bookId);
+  if(src){
+    if(tb&&tb.dataset.id!=drag.bookId){
+      handleDropOnBook(src,tb,x);
+    } else if(ts){
+      handleDropOnRow(src,ts,x);
+    }
+  }
+  drag.active=false;drag.bookId=null;
+}
+function handleDropOnBook(src,tb,x){
+  const tgt=ITEMS.find(b=>b.id===parseInt(tb.dataset.id));
+  if(!tgt) return;
+  const r=tb.getBoundingClientRect();
+  const after=x>r.left+r.width/2;
+  src.categoryId=tgt.categoryId;
+  src.shelf=tgt.categoryId;
+  src.row=tgt.row;
+  applyReorder(src.id,tgt.id,after);
+  showToast('📚 並び替えました');
+}
+function handleDropOnRow(src,ts,x){
+  const targetShelf=parseInt(ts.dataset.shelf)||src.shelf;
+  var targetRow=src.row;
+  if(ts.dataset && ts.dataset.row) targetRow=parseInt(ts.dataset.row);
+  src.categoryId=targetShelf;
+  src.shelf=targetShelf;
+  src.row=targetRow;
+  const rowBooks=Array.from(ts.querySelectorAll('.book'))
+    .map(el=>ITEMS.find(item=>item.id===parseInt(el.dataset.id)))
+    .filter(item=>item&&item.id!==src.id&&item.categoryId===targetShelf&&item.row===targetRow);
+  if(rowBooks.length){
+    const beforeTarget=rowBooks.find(item=>{
+      const el=ts.querySelector(`.book[data-id="${item.id}"]`);
+      if(!el) return false;
+      const rect=el.getBoundingClientRect();
+      return x<rect.left+rect.width/2;
+    });
+    if(beforeTarget){ applyReorder(src.id,beforeTarget.id,false); }
+    else { applyReorder(src.id,rowBooks[rowBooks.length-1].id,true); }
+  } else {
+    // 空き段：右端（末尾）へ
+    const ids=ITEMS.map(b=>b.id).filter(id=>id!==src.id);
+    ids.push(src.id);
+    ITEMS=ids.map(id=>ITEMS.find(b=>b.id===id));
+  }
+  saveItems();renderShelfById(getCurrentShelfId());showToast('📚 段を移動しました');
+}
+function psReorderByIds(ids,srcId,tgtId,after){
+  const out=ids.filter(id=>id!==srcId);
+  let idx=out.indexOf(tgtId);
+  if(idx<0) idx=out.length-1;
+  out.splice(after?idx+1:idx,0,srcId);
+  return out;
+}
+// 純粋関数：row が maxRows を超えるアイテムを最終段に収めた新しい配列を返す（破壊しない）
+function psClampRows(items,maxRows){
+  const max=Math.max(1,maxRows|0);
+  return items.map(it=>it.row>=max?{...it,row:max-1}:it);
+}
+function applyReorder(srcId,tgtId,after){
+  const ids=ITEMS.map(b=>b.id);
+  ITEMS=psReorderByIds(ids,srcId,tgtId,after).map(id=>ITEMS.find(b=>b.id===id));
+  saveItems();renderShelfById(getCurrentShelfId());
+  if(editMode)document.querySelectorAll('.shelf-row').forEach(r=>r.classList.add('edit-mode'));
+}
+function _reorder(src,tgt,after){
+  applyReorder(src.id,tgt.id,after);
+  showToast('📚 並び替えました');
+}
+
+// ════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// ════════════════════════════════════════════════════
+//  段数変更
+// ════════════════════════════════════════════════════
+function changeShelfRows(){
+  const id = getCurrentShelfId();
+  const def = SHELF_DEFS.find(d=>d.id===id);
+  const cur = (def && def.rows) || 3;
+  const sub = document.getElementById('rows-modal-sub');
+  if(sub){ var shelfName = def && def.name ? def.name : '棚'; sub.textContent = '「'+shelfName+'」の段数を選んでください（現在 '+cur+'段）'; }
+  const opts = document.getElementById('rows-options');
+  const rows = Array.from({length: 12}, (_, i) => i + 1);
+  if(opts) opts.innerHTML = rows.map(n=>`
+    <button onclick="setShelfRows(${n})" style="
+      padding:14px 8px;border-radius:10px;
+      border:2px solid ${n===cur?'var(--blue)':'rgba(0,0,0,.1)'};
+      background:${n===cur?'rgba(79,140,255,.1)':'#fff'};
+      font-size:16px;font-weight:700;cursor:pointer;
+      color:${n===cur?'var(--blue)':'var(--ink)'};
+    ">${n}段</button>`).join('');
+  document.getElementById('rows-modal').classList.add('open');
+}
+
+function setShelfRows(n){
+  const id = getCurrentShelfId();
+  const def = SHELF_DEFS.find(d=>d.id===id);
+  const value = Math.min(Math.max(Number(n) || 1, 1), 12);
+  if(def){ def.rows=value; saveShelfDefs(); }
+  // 段数を超えているアイテムを最終段に収める（純粋関数 psClampRows の結果を反映）
+  psClampRows(ITEMS.filter(b=>b.shelf===id), value).forEach(cl=>{
+    const orig=ITEMS.find(x=>x.id===cl.id);
+    if(orig && orig.row!==cl.row) orig.row=cl.row;
+  });
+  saveItems();
+  closeRowsModal();
+  updateRowsLabel();
+  renderShelfById(id);
+  showToast(`✅ ${value}段に変更しました`);
+}
+
+function closeRowsModal(){
+  document.getElementById('rows-modal').classList.remove('open');
+}
+
+function updateRowsLabel(){
+  const id = getCurrentShelfId();
+  const def = SHELF_DEFS.find(d=>d.id===id);
+  const el = document.getElementById('current-rows-label');
+  if(el) el.textContent = (def && def.rows) || 3;
+}
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+applyShelfConfig();
+renderShelf();
+renderCommunity();
+initShelfConfigUI();
+updateRowsLabel();
+updateAuthStatus();
+</script>
+</body>
+</html>
